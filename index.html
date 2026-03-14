@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Portfolio 系統滿意度與成效儀表板</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 引入 Babel 用於解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 引入 Apache ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        .glass-header { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); border-bottom: 1px solid #e5e7eb; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // ==========================================
+        // 1. 設定區塊 & 模擬資料產生器
+        // ==========================================
+        // 若要串接正式資料，請將 GAS_API_URL 替換為您的 Web App 網址，並將 USE_MOCK_DATA 設為 false
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbywzmBAxZkOn41Qhrf2ubCt3e1f4hAELAAsxMky4RvYEas4tMIjuUYGXnYc3cRAaMxFLw/exec"; 
+        const USE_MOCK_DATA = false;
+
+        // 題目對應字典
+        const QUESTION_MAP = {
+            "Q1": "操作介面簡單清楚",
+            "Q2": "系統運作穩定",
+            "Q3": "查詢與閱讀課程資訊方便",
+            "Q4": "能掌握學習/教學進度",
+            "Q5": "整體滿意度",
+            "S1": "能順利查閱老師評核結果與回饋",
+            "S2": "系統完整保存學習歷程與評核紀錄",
+            "S3": "透過系統能掌握完訓進度與待辦項目",
+            "S4": "評估教師系統操作熟練度",
+            "S5": "學員端遇到問題能獲得有效協助",
+            "T1": "自評系統操作熟練度",
+            "T2": "評分流程順暢度(Workflow Fit)",
+            "T3": "能有效節省工作時間",
+            "T7": "教師端遇到問題能獲得有效協助"
+        };
+
+        const KEYWORDS = ["當機", "卡頓", "介面", "找不到", "上傳", "很快", "好用", "進步", "教育訓練"];
+
+        // 針對您的試算表表頭設定對應欄位 (對應圖片中的 A1~AB1)
+        const COLUMNS = {
+            JOB_CATEGORY: "JobCategory",
+            ROLE: "Role",
+            FREQUENCY: "Frequency",
+            // ⚠️ 備註：圖片中的 FeedbackO... 被截斷了，若完整名稱為 FeedbackOpen 或 FeedbackOther，請手動修改下方引號內的值！
+            FEEDBACK: "FeedbackO" 
+        };
+
+        // 產生模擬資料
+        const generateMockData = () => {
+            const professions = ["醫師", "藥事", "醫事放射", "醫事檢驗", "護理", "營養", "呼吸治療", "聽力", "物理治療", "職能治療", "臨床心理", "語言治療"];
+            const roles = ["臨床教師", "受訓學員"];
+            const frequencies = ["重度", "經常", "偶爾", "極少"];
+            
+            let surveyData = [];
+            for(let i=0; i<300; i++) {
+                const role = roles[Math.floor(Math.random() * roles.length)];
+                const freq = frequencies[Math.floor(Math.random() * frequencies.length)];
+                // 產生常態分佈傾向的分數 (1-5)
+                const randScore = () => Math.min(5, Math.max(1, Math.round(Math.random() * 2 + 3 + (Math.random() > 0.5 ? 0.5 : -0.5))));
+                
+                let row = {
+                    [COLUMNS.JOB_CATEGORY]: professions[Math.floor(Math.random() * professions.length)],
+                    [COLUMNS.ROLE]: role,
+                    [COLUMNS.FREQUENCY]: freq,
+                    "Q1": randScore(), "Q2": randScore(), "Q3": randScore(), "Q4": randScore(), "Q5": randScore(),
+                };
+
+                // 設定假資料的正向關聯，讓趨勢圖好看
+                if(freq === "重度" || freq === "經常") {
+                    row.Q5 = Math.min(5, row.Q5 + 1);
+                    row.Q2 = Math.min(5, row.Q2 + 1);
+                }
+
+                if(role === "受訓學員") {
+                    row.S1 = randScore(); row.S2 = randScore(); row.S3 = randScore(); row.S4 = randScore(); row.S5 = randScore();
+                } else {
+                    row.T1 = randScore(); row.T2 = randScore(); row.T3 = randScore(); row.T7 = randScore();
+                }
+
+                // 產生隨機留言
+                if (Math.random() > 0.6) {
+                    const kw = KEYWORDS[Math.floor(Math.random() * KEYWORDS.length)];
+                    row[COLUMNS.FEEDBACK] = `我覺得系統${kw}的方面可以再加強。整體來說${Math.random() > 0.5 ? '還不錯' : '需要改善'}。`;
+                }
+
+                surveyData.push(row);
+            }
+
+            const historyData = [
+                { "年份": "111年", "Q5": 3.6, "Q2": 3.2 },
+                { "年份": "112年", "Q5": 3.8, "Q2": 3.5 },
+                { "年份": "113年", "Q5": 4.1, "Q2": 3.9 },
+                { "年份": "114年", "Q5": 4.3, "Q2": 4.1 },
+                { "年份": "115年", "Q5": 4.5, "Q2": 4.4 },
+            ];
+
+            return { surveyData, questionMap: QUESTION_MAP, historyData };
+        };
+
+        // ==========================================
+        // 2. 共用工具函數
+        // ==========================================
+        const calcAvg = (data, key) => {
+            const valid = data.filter(d => typeof d[key] === 'number');
+            return valid.length ? (valid.reduce((sum, d) => sum + d[key], 0) / valid.length).toFixed(2) : "0.00";
+        };
+
+        // 計算皮爾森相關係數 (Pearson Correlation)
+        const calcCorrelation = (data, keyX, keyY) => {
+            const valid = data.filter(d => typeof d[keyX] === 'number' && typeof d[keyY] === 'number');
+            if (valid.length === 0) return 0;
+            const n = valid.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+            valid.forEach(d => {
+                const x = d[keyX], y = d[keyY];
+                sumX += x; sumY += y; sumXY += x * y; sumX2 += x * x; sumY2 += y * y;
+            });
+            const numerator = (n * sumXY) - (sumX * sumY);
+            const denominator = Math.sqrt(((n * sumX2) - (sumX * sumX)) * ((n * sumY2) - (sumY * sumY)));
+            if (denominator === 0) return 0;
+            return (numerator / denominator).toFixed(3);
+        };
+
+        const countScores = (data, key) => {
+            const counts = {1:0, 2:0, 3:0, 4:0, 5:0};
+            data.filter(d => typeof d[key] === 'number').forEach(d => counts[d[key]]++);
+            return counts;
+        };
+
+        // SVG Icons
+        const Icons = {
+            Users: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+            Star: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+            Server: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>,
+            Clock: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            Filter: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        };
+
+        // ==========================================
+        // 3. ECharts 元件包裝
+        // ==========================================
+        const ReactECharts = ({ option, style, className }) => {
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                if (!chartInstance.current) {
+                    chartInstance.current = echarts.init(chartRef.current);
+                }
+                chartInstance.current.setOption(option);
+                
+                const handleResize = () => chartInstance.current.resize();
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, [option]);
+
+            return <div ref={chartRef} style={{ width: '100%', height: '100%', ...style }} className={className} />;
+        };
+
+        // ==========================================
+        // 4. 主應用程式
+        // ==========================================
+        const Dashboard = () => {
+            const [rawData, setRawData] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+
+            // 篩選器狀態
+            const [filters, setFilters] = useState({
+                profession: '全院總計',
+                role: '全部',
+                frequency: '全部'
+            });
+
+            // 區塊三模式切換
+            const [sec3Mode, setSec3Mode] = useState('heatmap'); // heatmap | stacked
+            // 關鍵字篩選
+            const [selectedKeyword, setSelectedKeyword] = useState(null);
+
+            // 初始化載入資料
+            useEffect(() => {
+                const loadData = async () => {
+                    try {
+                        if (USE_MOCK_DATA) {
+                            setTimeout(() => {
+                                setRawData(generateMockData());
+                                setLoading(false);
+                            }, 800); // 模擬網路延遲
+                        } else {
+                            const res = await fetch(GAS_API_URL);
+                            const json = await res.json();
+                            if (json.error) throw new Error(json.error);
+                            setRawData(json);
+                            setLoading(false);
+                        }
+                    } catch (err) {
+                        setError(err.message);
+                        setLoading(false);
+                    }
+                };
+                loadData();
+            }, []);
+
+            // 經過篩選的資料
+            const filteredData = useMemo(() => {
+                if (!rawData) return [];
+                return rawData.surveyData.filter(d => {
+                    if (filters.profession !== '全院總計' && d[COLUMNS.JOB_CATEGORY] !== filters.profession) return false;
+                    if (filters.role !== '全部' && d[COLUMNS.ROLE] !== filters.role) return false;
+                    if (filters.frequency !== '全部' && d[COLUMNS.FREQUENCY] !== filters.frequency) return false;
+                    return true;
+                });
+            }, [rawData, filters]);
+
+            if (loading) return <div className="flex h-screen items-center justify-center text-xl text-blue-600 font-bold">載入資料中，請稍候...</div>;
+            if (error) return <div className="flex h-screen items-center justify-center text-xl text-red-600">發生錯誤: {error}</div>;
+
+            const allData = rawData.surveyData;
+            const qMap = rawData.questionMap;
+
+            // ================= 區塊圖表設定 =================
+            
+            // 區塊一：歷年趨勢
+            const trendOption = {
+                tooltip: { trigger: 'axis' },
+                legend: { data: ['整體滿意度 (Q5)', '系統穩定度 (Q2)'], bottom: 0 },
+                grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+                xAxis: { type: 'category', data: rawData.historyData.map(d => d['年份']), axisLine: { lineStyle: { color: '#9ca3af' } } },
+                yAxis: { type: 'value', min: 1, max: 5 },
+                series: [
+                    { name: '整體滿意度 (Q5)', type: 'line', data: rawData.historyData.map(d => d['Q5']), smooth: true, itemStyle: { color: '#3b82f6' }, lineStyle: { width: 3 } },
+                    { name: '系統穩定度 (Q2)', type: 'line', data: rawData.historyData.map(d => d['Q2']), smooth: true, itemStyle: { color: '#10b981' }, lineStyle: { width: 3 } }
+                ]
+            };
+
+            // 區塊二：驅動分析 (長條圖)
+            const driverQuestions = ['Q1', 'Q2', 'T2', 'T3'];
+            const correlations = driverQuestions.map(q => ({
+                name: qMap[q],
+                val: parseFloat(calcCorrelation(filteredData, 'Q5', q))
+            })).sort((a, b) => a.val - b.val); // 升冪排序，讓畫出來由上而下遞增
+
+            const driverOption = {
+                tooltip: { trigger: 'axis', formatter: '{b}: R = {c}' },
+                grid: { left: '3%', right: '10%', bottom: '3%', top: '3%', containLabel: true },
+                xAxis: { type: 'value', name: '相關係數 (r)', max: 1 },
+                yAxis: { type: 'category', data: correlations.map(c => c.name), axisLabel: { width: 120, overflow: 'break' } },
+                series: [{
+                    type: 'bar',
+                    data: correlations.map(c => c.val),
+                    itemStyle: { color: '#6366f1', borderRadius: [0, 4, 4, 0] },
+                    label: { show: true, position: 'right' }
+                }]
+            };
+
+            // 區塊二：分層使用滿意度
+            const freqs = ["極少", "偶爾", "經常", "重度"];
+            const freqAvg = freqs.map(f => {
+                const d = filteredData.filter(x => x[COLUMNS.FREQUENCY] === f);
+                return d.length ? parseFloat(calcAvg(d, 'Q5')) : 0;
+            });
+            const segmentationOption = {
+                tooltip: { trigger: 'axis' },
+                grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
+                xAxis: { type: 'category', data: freqs },
+                yAxis: { type: 'value', min: 1, max: 5 },
+                series: [
+                    { type: 'bar', data: freqAvg, itemStyle: { color: '#8b5cf6', borderRadius: [4, 4, 0, 0] } },
+                    { type: 'line', data: freqAvg, smooth: true, itemStyle: { color: '#f59e0b' }, lineStyle: { width: 3 } }
+                ]
+            };
+
+            // 區塊三：100% 堆疊資料
+            const allQKeys = Object.keys(qMap);
+            const stackData = allQKeys.map(k => {
+                const counts = countScores(filteredData, k);
+                const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+                return {
+                    name: `(${k}) ${qMap[k]}`,
+                    s1: (counts[1]/total*100), s2: (counts[2]/total*100), s3: (counts[3]/total*100),
+                    s4: (counts[4]/total*100), s5: (counts[5]/total*100),
+                    avg: calcAvg(filteredData, k)
+                };
+            }).sort((a, b) => parseFloat(b.avg) - parseFloat(a.avg)); // 依平均分排序
+
+            const stackedOption = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (params) => {
+                    let res = params[0].name + '<br/>';
+                    params.forEach(p => res += p.marker + p.seriesName + ': ' + p.value.toFixed(1) + '%<br/>');
+                    return res;
+                }},
+                legend: { data: ['非常不滿意', '不滿意', '普通', '滿意', '非常滿意'], bottom: 0 },
+                grid: { left: '3%', right: '5%', bottom: '10%', top: '3%', containLabel: true },
+                xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
+                yAxis: { type: 'category', data: stackData.map(d => d.name).reverse(), axisLabel: { width: 180, overflow: 'truncate' } },
+                series: [
+                    { name: '非常不滿意', type: 'bar', stack: 'total', itemStyle: { color: '#ef4444' }, data: stackData.map(d => d.s1).reverse() },
+                    { name: '不滿意', type: 'bar', stack: 'total', itemStyle: { color: '#f87171' }, data: stackData.map(d => d.s2).reverse() },
+                    { name: '普通', type: 'bar', stack: 'total', itemStyle: { color: '#d1d5db' }, data: stackData.map(d => d.s3).reverse() },
+                    { name: '滿意', type: 'bar', stack: 'total', itemStyle: { color: '#34d399' }, data: stackData.map(d => d.s4).reverse() },
+                    { name: '非常滿意', type: 'bar', stack: 'total', itemStyle: { color: '#10b981' }, data: stackData.map(d => d.s5).reverse() },
+                ]
+            };
+
+            // 區塊四：4-1 Radar
+            const getGroupAvg = (data, keys) => {
+                let sum = 0, count = 0;
+                data.forEach(d => {
+                    keys.forEach(k => {
+                        if (typeof d[k] === 'number') { sum += d[k]; count++; }
+                    });
+                });
+                return count ? (sum / count).toFixed(2) : 0;
+            };
+            const radarCurrent = [
+                getGroupAvg(filteredData, ['Q1', 'Q2']),
+                getGroupAvg(filteredData, ['Q3', 'Q4', 'S1']),
+                getGroupAvg(filteredData, ['T7', 'S5'])
+            ];
+            const radarAll = [
+                getGroupAvg(allData, ['Q1', 'Q2']),
+                getGroupAvg(allData, ['Q3', 'Q4', 'S1']),
+                getGroupAvg(allData, ['T7', 'S5'])
+            ];
+            const radarOption = {
+                tooltip: {},
+                legend: { data: ['目前篩選單位', '全院平均'], bottom: 0 },
+                radar: {
+                    indicator: [
+                        { name: '系統品質\n(介面/穩定)', max: 5 },
+                        { name: '資訊品質\n(查詢/進度)', max: 5 },
+                        { name: '服務品質\n(問題求助)', max: 5 }
+                    ],
+                    radius: '65%'
+                },
+                series: [{
+                    type: 'radar',
+                    data: [
+                        { value: radarCurrent, name: '目前篩選單位', itemStyle: { color: '#2563eb' }, lineStyle: { width: 2 } },
+                        { value: radarAll, name: '全院平均', itemStyle: { color: '#9ca3af' }, lineStyle: { type: 'dashed' }, areaStyle: { color: 'rgba(156, 163, 175, 0.2)' } }
+                    ]
+                }]
+            };
+
+            // 區塊四：4-2 Gauge & Dual Bar
+            const t2Avg = parseFloat(calcAvg(filteredData, 'T2'));
+            const gaugeOption = {
+                series: [{
+                    type: 'gauge', min: 0, max: 5, splitNumber: 5,
+                    axisLine: { lineStyle: { width: 10, color: [[t2Avg/5, '#f59e0b'], [1, '#e5e7eb']] } },
+                    pointer: { itemStyle: { color: '#4b5563' } },
+                    axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+                    detail: { valueAnimation: true, formatter: '{value} 分', fontSize: 20, offsetCenter: [0, '70%'] },
+                    data: [{ value: t2Avg, name: 'T2: 流程順暢度' }]
+                }]
+            };
+            
+            const dualBarOption = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { bottom: 0 },
+                grid: { left: '5%', right: '5%', top: '10%', bottom: '20%', containLabel: true },
+                xAxis: { type: 'value', max: 5 },
+                yAxis: { type: 'category', data: ['系統熟練度'] },
+                series: [
+                    { name: '教師自評(T1)', type: 'bar', data: [calcAvg(filteredData, 'T1')], itemStyle: { color: '#3b82f6', borderRadius: 4 } },
+                    { name: '學員評估(S4)', type: 'bar', data: [calcAvg(filteredData, 'S4')], itemStyle: { color: '#ec4899', borderRadius: 4 } }
+                ]
+            };
+
+            // 區塊四：4-3 Stacked Bar
+            const targetKeys4_3 = ['T3', 'S2', 'S3'];
+            const stackData4_3 = targetKeys4_3.map(k => {
+                const counts = countScores(filteredData, k);
+                const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+                return {
+                    name: qMap[k],
+                    s1: (counts[1]/total*100), s2: (counts[2]/total*100), s3: (counts[3]/total*100),
+                    s4: (counts[4]/total*100), s5: (counts[5]/total*100)
+                };
+            }).reverse();
+
+            const stackedOption4_3 = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (params) => {
+                    let res = params[0].name + '<br/>';
+                    params.forEach(p => res += p.marker + p.seriesName + ': ' + p.value.toFixed(1) + '%<br/>');
+                    return res;
+                }},
+                legend: { data: ['非常不滿意', '不滿意', '普通', '滿意', '非常滿意'], bottom: 0, textStyle: {fontSize: 10} },
+                grid: { left: '3%', right: '5%', bottom: '15%', top: '5%', containLabel: true },
+                xAxis: { type: 'value', max: 100, show: false },
+                yAxis: { type: 'category', data: stackData4_3.map(d => d.name), axisLabel: { width: 100, overflow: 'break' } },
+                series: [
+                    { name: '非常不滿意', type: 'bar', stack: 't', itemStyle: { color: '#ef4444' }, data: stackData4_3.map(d => d.s1) },
+                    { name: '不滿意', type: 'bar', stack: 't', itemStyle: { color: '#f87171' }, data: stackData4_3.map(d => d.s2) },
+                    { name: '普通', type: 'bar', stack: 't', itemStyle: { color: '#d1d5db' }, data: stackData4_3.map(d => d.s3) },
+                    { name: '滿意', type: 'bar', stack: 't', itemStyle: { color: '#34d399' }, data: stackData4_3.map(d => d.s4) },
+                    { name: '非常滿意', type: 'bar', stack: 't', itemStyle: { color: '#10b981' }, data: stackData4_3.map(d => d.s5) },
+                ]
+            };
+
+
+            return (
+                <div className="min-h-screen pb-12">
+                    {/* 頂部固定過濾器 */}
+                    <div className="sticky top-0 z-50 glass-header shadow-sm px-6 py-4 mb-6">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-2 text-xl font-bold text-gray-800">
+                                <Icons.Filter />
+                                E-Portfolio 成效儀表板
+                            </div>
+                            <div className="flex flex-wrap gap-4 items-center">
+                                <select className="border border-gray-300 rounded-md px-3 py-1.5 bg-white text-sm shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={filters.profession} onChange={e => setFilters({...filters, profession: e.target.value})}>
+                                    <option value="全院總計">職類：全院總計</option>
+                                    <option value="醫師">醫師</option>
+                                    <option value="藥事">藥事</option>
+                                    <option value="醫事放射">醫事放射</option>
+                                    <option value="醫事檢驗">醫事檢驗</option>
+                                    <option value="護理">護理</option>
+                                    <option value="營養">營養</option>
+                                    <option value="呼吸治療">呼吸治療</option>
+                                    <option value="聽力">聽力</option>
+                                    <option value="物理治療">物理治療</option>
+                                    <option value="職能治療">職能治療</option>
+                                    <option value="臨床心理">臨床心理</option>
+                                    <option value="語言治療">語言治療</option>
+                                </select>
+                                <select className="border border-gray-300 rounded-md px-3 py-1.5 bg-white text-sm shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={filters.role} onChange={e => setFilters({...filters, role: e.target.value})}>
+                                    <option value="全部">身分：全部</option>
+                                    <option value="臨床教師">臨床教師</option>
+                                    <option value="受訓學員">受訓學員</option>
+                                </select>
+                                <select className="border border-gray-300 rounded-md px-3 py-1.5 bg-white text-sm shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={filters.frequency} onChange={e => setFilters({...filters, frequency: e.target.value})}>
+                                    <option value="全部">頻率：全部</option>
+                                    <option value="重度">重度</option>
+                                    <option value="經常">經常</option>
+                                    <option value="偶爾">偶爾</option>
+                                    <option value="極少">極少</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="max-w-7xl mx-auto px-6 space-y-8">
+                        
+                        {/* 📍 區塊一：決策總覽與歷年趨勢 */}
+                        <section>
+                            <h2 className="text-xl font-bold border-l-4 border-blue-600 pl-3 mb-4 text-gray-800">📍 決策總覽與歷年趨勢 (Executive Summary & Trends)</h2>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                {/* KPIs */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                        <div className="text-blue-500 mb-2"><Icons.Users /></div>
+                                        <div className="text-sm text-gray-500 font-medium">總填答人數</div>
+                                        <div className="text-3xl font-black text-gray-800">{filteredData.length}</div>
+                                    </div>
+                                    <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                        <div className="text-yellow-500 mb-2"><Icons.Star /></div>
+                                        <div className="text-sm text-gray-500 font-medium">整體滿意度 (Q5)</div>
+                                        <div className="text-3xl font-black text-gray-800">{calcAvg(filteredData, 'Q5')} <span className="text-sm">/ 5</span></div>
+                                    </div>
+                                    <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                        <div className="text-green-500 mb-2"><Icons.Server /></div>
+                                        <div className="text-sm text-gray-500 font-medium">系統穩定度 (Q2)</div>
+                                        <div className="text-3xl font-black text-gray-800">{calcAvg(filteredData, 'Q2')} <span className="text-sm">/ 5</span></div>
+                                    </div>
+                                    <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                        <div className="text-purple-500 mb-2"><Icons.Clock /></div>
+                                        <div className="text-sm text-gray-500 font-medium">行政減量有感 (T3)</div>
+                                        <div className="text-3xl font-black text-gray-800">{calcAvg(filteredData, 'T3')} <span className="text-sm">/ 5</span></div>
+                                    </div>
+                                </div>
+                                {/* 趨勢圖 */}
+                                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-4 border border-gray-100 h-64">
+                                    <div className="text-sm font-bold text-gray-700 mb-2">歷年關鍵指標趨勢</div>
+                                    <ReactECharts option={trendOption} />
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 📍 區塊二：關鍵驅動與分層解析 */}
+                        <section>
+                            <h2 className="text-xl font-bold border-l-4 border-indigo-600 pl-3 mb-4 text-gray-800">📍 關鍵驅動與分層解析 (Driver & Segmentation)</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 h-80">
+                                    <div className="text-sm font-bold text-gray-700 mb-1">滿意度關鍵驅動因子 (與 Q5 的相關性)</div>
+                                    <div className="text-xs text-gray-500 mb-2">數值越高代表該項目越能帶動整體滿意度</div>
+                                    <ReactECharts option={driverOption} />
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 h-80">
+                                    <div className="text-sm font-bold text-gray-700 mb-1">使用頻率分層滿意度</div>
+                                    <div className="text-xs text-gray-500 mb-2">檢視「越常用是否越滿意」(黏著度診斷)</div>
+                                    <ReactECharts option={segmentationOption} />
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 📍 區塊三：全題項滿意度細部剖析 */}
+                        <section>
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold border-l-4 border-teal-600 pl-3 text-gray-800">📍 全題項滿意度細部剖析</h2>
+                                <div className="bg-gray-200 p-1 rounded-lg flex text-sm">
+                                    <button 
+                                        className={`px-4 py-1 rounded-md transition-colors ${sec3Mode === 'heatmap' ? 'bg-white shadow font-bold text-teal-700' : 'text-gray-600 hover:bg-gray-300'}`}
+                                        onClick={() => setSec3Mode('heatmap')}
+                                    >均分對比 (Heatmap)</button>
+                                    <button 
+                                        className={`px-4 py-1 rounded-md transition-colors ${sec3Mode === 'stacked' ? 'bg-white shadow font-bold text-teal-700' : 'text-gray-600 hover:bg-gray-300'}`}
+                                        onClick={() => setSec3Mode('stacked')}
+                                    >情緒分佈 (Stacked Bar)</button>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 min-h-[400px]">
+                                {sec3Mode === 'heatmap' ? (
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="min-w-full text-left text-sm whitespace-nowrap">
+                                            <thead className="border-b bg-gray-50 text-gray-700">
+                                                <tr>
+                                                    <th className="px-4 py-3 font-bold">題項</th>
+                                                    <th className="px-4 py-3 font-bold text-center">當前單位均分</th>
+                                                    <th className="px-4 py-3 font-bold text-center">全院均分</th>
+                                                    <th className="px-4 py-3 font-bold text-center">差異對比</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {allQKeys.map((k, i) => {
+                                                    const curAvg = parseFloat(calcAvg(filteredData, k));
+                                                    const allAvg = parseFloat(calcAvg(allData, k));
+                                                    if (curAvg === 0) return null; // 該身分沒有這題
+                                                    const diff = (curAvg - allAvg).toFixed(2);
+                                                    const isNegative = diff < 0;
+                                                    return (
+                                                        <tr key={k} className="border-b last:border-0 hover:bg-gray-50">
+                                                            <td className="px-4 py-3 font-medium text-gray-800">{`(${k}) ${qMap[k]}`}</td>
+                                                            <td className="px-4 py-3 text-center font-bold">{curAvg.toFixed(2)}</td>
+                                                            <td className="px-4 py-3 text-center text-gray-500">{allAvg.toFixed(2)}</td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${isNegative ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                                    {diff > 0 ? '+' : ''}{diff}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    )
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <div className="h-[500px]">
+                                        <ReactECharts option={stackedOption} />
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+
+                        {/* 📍 區塊四：理論模型與成效檢核 */}
+                        <section>
+                            <h2 className="text-xl font-bold border-l-4 border-amber-500 pl-3 mb-4 text-gray-800">📍 理論模型與成效檢核 (D&M / Workflow Fit)</h2>
+                            <div className="text-sm text-gray-600 mb-4 ml-4">從系統體質、流程適配到最終價值，檢視 E-Portfolio 系統是否真正支持教學與學習。</div>
+                            
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* Card 4-1 */}
+                                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-col">
+                                    <h3 className="font-bold text-gray-800 border-b pb-2 mb-2">4-1. 系統體質健康度 (D&M)</h3>
+                                    <p className="text-xs text-gray-500 mb-2">診斷系統、資訊與服務三大品質表現</p>
+                                    <div className="flex-grow min-h-[250px]">
+                                        <ReactECharts option={radarOption} />
+                                    </div>
+                                </div>
+                                
+                                {/* Card 4-2 */}
+                                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-col gap-4">
+                                    <div>
+                                        <h3 className="font-bold text-gray-800 border-b pb-2 mb-2">4-2. 臨床任務適配與認知落差</h3>
+                                        <p className="text-xs text-gray-500 mb-1">衡量教師評核流程是否順暢 (T2)</p>
+                                        <div className="h-32"><ReactECharts option={gaugeOption} /></div>
+                                    </div>
+                                    <div className="border-t pt-2">
+                                        <p className="text-xs text-gray-500 mb-1">師生對系統熟練度認知落差</p>
+                                        <div className="h-32"><ReactECharts option={dualBarOption} /></div>
+                                    </div>
+                                </div>
+
+                                {/* Card 4-3 */}
+                                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-col">
+                                    <h3 className="font-bold text-gray-800 border-b pb-2 mb-2">4-3. 系統淨效益與核心價值</h3>
+                                    <p className="text-xs text-gray-500 mb-2">評估行政減量、歷程保存與自我管理效益</p>
+                                    <div className="flex-grow min-h-[250px]">
+                                        <ReactECharts option={stackedOption4_3} />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 📍 區塊五：開放式回饋挖掘 */}
+                        <section>
+                            <h2 className="text-xl font-bold border-l-4 border-rose-500 pl-3 mb-4 text-gray-800">📍 開放式回饋挖掘 (Voice of Customer)</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {/* 標籤雲 (模擬) */}
+                                <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 md:col-span-1">
+                                    <h3 className="font-bold text-gray-700 mb-4">關鍵字分析 (點擊篩選)</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button 
+                                            onClick={() => setSelectedKeyword(null)}
+                                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${selectedKeyword === null ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                        >全部顯示</button>
+                                        {KEYWORDS.map(kw => {
+                                            // 簡單計算該關鍵字出現次數 (僅針對有填寫回饋的過濾後資料)
+                                            const count = filteredData.filter(d => d[COLUMNS.FEEDBACK] && d[COLUMNS.FEEDBACK].includes(kw)).length;
+                                            if(count === 0) return null;
+                                            
+                                            // 判斷正負面顏色 (模擬)
+                                            const isNeg = ["當機", "卡頓", "找不到"].includes(kw);
+                                            const isPos = ["好用", "進步", "很快"].includes(kw);
+                                            const colorClass = isNeg ? 'bg-red-100 text-red-700 hover:bg-red-200' : 
+                                                             isPos ? 'bg-green-100 text-green-700 hover:bg-green-200' : 
+                                                             'bg-blue-100 text-blue-700 hover:bg-blue-200';
+                                            const activeClass = selectedKeyword === kw ? 'ring-2 ring-offset-2 ring-gray-400' : '';
+
+                                            return (
+                                                <button 
+                                                    key={kw} 
+                                                    onClick={() => setSelectedKeyword(kw)}
+                                                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${colorClass} ${activeClass}`}
+                                                >
+                                                    {kw} <span className="opacity-60 text-xs ml-1">({count})</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                                
+                                {/* 留言瀑布流 */}
+                                <div className="bg-white rounded-xl shadow-sm p-0 border border-gray-100 md:col-span-2 overflow-hidden flex flex-col h-96">
+                                    <div className="p-4 border-b bg-gray-50 font-bold text-gray-700 flex justify-between items-center">
+                                        <span>回饋列表 {selectedKeyword && <span className="text-blue-600 font-normal text-sm ml-2">過濾: {selectedKeyword}</span>}</span>
+                                    </div>
+                                    <div className="p-4 overflow-y-auto custom-scrollbar flex-grow space-y-3">
+                                        {filteredData.filter(d => d[COLUMNS.FEEDBACK] && (!selectedKeyword || d[COLUMNS.FEEDBACK].includes(selectedKeyword))).length === 0 ? (
+                                            <div className="text-gray-400 text-center py-8">目前無符合條件之回饋</div>
+                                        ) : (
+                                            filteredData.filter(d => d[COLUMNS.FEEDBACK] && (!selectedKeyword || d[COLUMNS.FEEDBACK].includes(selectedKeyword))).map((d, i) => (
+                                                <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm text-gray-700 shadow-sm">
+                                                    <div className="flex gap-2 mb-1 text-xs font-bold text-gray-500">
+                                                        <span className="bg-white px-2 py-0.5 rounded border">{d[COLUMNS.JOB_CATEGORY]}</span>
+                                                        <span className="bg-white px-2 py-0.5 rounded border">{d[COLUMNS.ROLE]}</span>
+                                                        <span className="ml-auto flex items-center gap-1 text-yellow-600"><Icons.Star/> Q5: {d['Q5']}</span>
+                                                    </div>
+                                                    <p className="mt-2 leading-relaxed">{d[COLUMNS.FEEDBACK]}</p>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
+    </script>
+</body>
+</html>
