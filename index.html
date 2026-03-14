@@ -3,10 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-Portfolio 系統滿意度與成效儀表板</title>
+    <title>E-Portfolio 系統滿意度與成效儀表板 (投影高對比版)</title>
+    
+    <!-- 引入 Google Fonts: 思源黑體 (Noto Sans TC) 確保跨平台中文字型一致且清晰 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
     
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 設定 Tailwind 使用思源黑體作為全局預設字型 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     
     <!-- 引入 React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -19,12 +37,26 @@
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
-        .glass-header { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); border-bottom: 1px solid #e5e7eb; }
+        /* 投影機專用：更深的背景對比與明確的字體設定 */
+        body { 
+            background-color: #e5e7eb; /* 較深的灰白背景，凸顯純白卡片 */
+            color: #111827; /* 近乎純黑的文字，確保最高對比度 */
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f3f4f6; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .glass-header { 
+            background: rgba(255, 255, 255, 0.98); 
+            border-bottom: 2px solid #d1d5db; /* 加粗導覽列底線 */
+        }
+        /* 投影機專用卡片：移除模糊陰影，改用實線邊框 */
+        .dashboard-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #cbd5e1; /* 明確的灰色實體邊框 */
+        }
     </style>
 </head>
 <body>
@@ -36,11 +68,9 @@
         // ==========================================
         // 1. 設定區塊 & 模擬資料產生器
         // ==========================================
-        // 若要串接正式資料，請將 GAS_API_URL 替換為您的 Web App 網址，並將 USE_MOCK_DATA 設為 false
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbywzmBAxZkOn41Qhrf2ubCt3e1f4hAELAAsxMky4RvYEas4tMIjuUYGXnYc3cRAaMxFLw/exec"; 
         const USE_MOCK_DATA = false;
 
-        // 題目對應字典
         const QUESTION_MAP = {
             "Q1": "操作介面簡單清楚",
             "Q2": "系統運作穩定",
@@ -58,14 +88,17 @@
             "T7": "教師端遇到問題能獲得有效協助"
         };
 
-        // 針對您的試算表表頭設定對應欄位
+        const KEYWORDS = ["當機", "卡頓", "介面", "找不到", "上傳", "很快", "好用", "進步", "教育訓練", "流程", "速度"];
+
         const COLUMNS = {
             JOB_CATEGORY: "JobCategory",
             ROLE: "Role",
-            FREQUENCY: "Frequency"
+            FREQUENCY: "Frequency",
+            FEEDBACK_BOTTLENECK: "FeedbackBottleneck", 
+            FEEDBACK_OTHER: "FeedbackOther"            
         };
 
-        // 產生模擬資料
+        // 模擬資料 
         const generateMockData = () => {
             const professions = ["醫師", "藥事", "醫事放射", "醫事檢驗", "護理", "營養", "呼吸治療", "聽力", "物理治療", "職能治療", "臨床心理", "語言治療"];
             const roles = ["臨床教師", "學員"];
@@ -75,7 +108,6 @@
             for(let i=0; i<300; i++) {
                 const role = roles[Math.floor(Math.random() * roles.length)];
                 const freq = frequencies[Math.floor(Math.random() * frequencies.length)];
-                // 產生常態分佈傾向的分數 (1-5)
                 const randScore = () => Math.min(5, Math.max(1, Math.round(Math.random() * 2 + 3 + (Math.random() > 0.5 ? 0.5 : -0.5))));
                 
                 let row = {
@@ -85,7 +117,6 @@
                     "Q1": randScore(), "Q2": randScore(), "Q3": randScore(), "Q4": randScore(), "Q5": randScore(),
                 };
 
-                // 設定假資料的正向關聯，讓趨勢圖好看
                 if(freq === "重度" || freq === "經常") {
                     row.Q5 = Math.min(5, row.Q5 + 1);
                     row.Q2 = Math.min(5, row.Q2 + 1);
@@ -97,10 +128,18 @@
                     row.T1 = randScore(); row.T2 = randScore(); row.T3 = randScore(); row.T7 = randScore();
                 }
 
+                if (Math.random() > 0.7) {
+                    const kw1 = KEYWORDS[Math.floor(Math.random() * KEYWORDS.length)];
+                    row[COLUMNS.FEEDBACK_BOTTLENECK] = `系統在${kw1}的設計上不太直覺，希望可以改善。`;
+                }
+                if (Math.random() > 0.8) {
+                    const kw2 = KEYWORDS[Math.floor(Math.random() * KEYWORDS.length)];
+                    row[COLUMNS.FEEDBACK_OTHER] = `如果${kw2}的方面可以加強，整體會更流暢，謝謝！`;
+                }
+
                 surveyData.push(row);
             }
 
-            // 修改為對應截圖中的 "年度" 欄位名稱
             const historyData = [
                 { "年度": 112, "Q5": 3.71, "Q2": 3.62 },
                 { "年度": 113, "Q5": 3.86, "Q2": 3.87 }
@@ -117,10 +156,9 @@
             return valid.length ? (valid.reduce((sum, d) => sum + parseFloat(d[key]), 0) / valid.length).toFixed(2) : "0.00";
         };
 
-        // 計算皮爾森相關係數 (Pearson Correlation)
         const calcCorrelation = (data, keyX, keyY) => {
             const valid = data.filter(d => d[keyX] !== '' && d[keyY] !== '' && d[keyX] !== null && d[keyY] !== null && !isNaN(parseFloat(d[keyX])) && !isNaN(parseFloat(d[keyY])));
-            if (valid.length <= 1) return null; // 若無足夠填答資料則不計算
+            if (valid.length <= 1) return null; 
             const n = valid.length;
             let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
             valid.forEach(d => {
@@ -136,23 +174,23 @@
         const countScores = (data, key) => {
             const counts = {1:0, 2:0, 3:0, 4:0, 5:0};
             data.filter(d => d[key] !== '' && d[key] !== null && !isNaN(parseFloat(d[key]))).forEach(d => {
-                const score = Math.round(parseFloat(d[key])); // 確保轉為整數
+                const score = Math.round(parseFloat(d[key]));
                 if(counts[score] !== undefined) counts[score]++;
             });
             return counts;
         };
 
-        // SVG Icons
+        // SVG Icons (加粗線條)
         const Icons = {
-            Users: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-            Star: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-            Server: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>,
-            Clock: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-            Filter: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            Users: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+            Star: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+            Server: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>,
+            Clock: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            Filter: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
         };
 
         // ==========================================
-        // 3. ECharts 元件包裝
+        // 3. ECharts 元件包裝 (自動注入統一字型設定)
         // ==========================================
         const ReactECharts = ({ option, style, className }) => {
             const chartRef = useRef(null);
@@ -162,7 +200,17 @@
                 if (!chartInstance.current) {
                     chartInstance.current = echarts.init(chartRef.current);
                 }
-                chartInstance.current.setOption(option, true); // true 代表合併新設定並清理舊數據
+                
+                // 強制所有 ECharts 圖表繼承 Noto Sans TC 字型
+                const finalOption = {
+                    ...option,
+                    textStyle: {
+                        fontFamily: '"Noto Sans TC", sans-serif',
+                        ...(option.textStyle || {})
+                    }
+                };
+                
+                chartInstance.current.setOption(finalOption, true); 
                 
                 const handleResize = () => chartInstance.current.resize();
                 window.addEventListener('resize', handleResize);
@@ -180,17 +228,32 @@
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
 
-            // 篩選器狀態
             const [filters, setFilters] = useState({
                 profession: '全院總計',
                 role: '全部',
                 frequency: '全部'
             });
 
-            // 區塊三模式切換 (改為基準預設)
-            const [sec3Mode, setSec3Mode] = useState('benchmark'); // benchmark | stacked
+            const [sec3Mode, setSec3Mode] = useState('benchmark'); 
+            const [feedbackTab, setFeedbackTab] = useState('bottleneck'); 
+            const [selectedKeyword, setSelectedKeyword] = useState(null);
 
-            // 初始化載入資料
+            // 投影專用：高對比色彩定義
+            const colors = {
+                primary: '#1d4ed8',    // 寶石藍 (Blue-700) - 極高辨識度
+                primaryLight: '#bfdbfe', // 淺藍色 (Blue-200)
+                secondary: '#be123c',  // 深緋紅 (Rose-700)
+                secondaryLight: '#fecdd3', // 淺紅色
+                accent: '#c2410c',     // 深橘色 (Orange-700) - 警示
+                score1: '#b91c1c',     // 1分：暗紅
+                score2: '#ea580c',     // 2分：深橘
+                score3: '#ca8a04',     // 3分：深黃(土黃，投影才清楚)
+                score4: '#16a34a',     // 4分：草綠
+                score5: '#1d4ed8',     // 5分：寶石藍
+                grayBase: '#9ca3af',   // 網格線 (Gray-400)
+                grayText: '#374151'    // 軸線文字 (Gray-700)
+            };
+
             useEffect(() => {
                 const loadData = async () => {
                     try {
@@ -198,7 +261,7 @@
                             setTimeout(() => {
                                 setRawData(generateMockData());
                                 setLoading(false);
-                            }, 800); // 模擬網路延遲
+                            }, 800);
                         } else {
                             const res = await fetch(GAS_API_URL);
                             const json = await res.json();
@@ -214,7 +277,6 @@
                 loadData();
             }, []);
 
-            // 經過篩選的資料
             const filteredData = useMemo(() => {
                 if (!rawData) return [];
                 return rawData.surveyData.filter(d => {
@@ -225,7 +287,6 @@
                 });
             }, [rawData, filters]);
 
-            // 動態取得試算表中實際存在的使用頻率
             const uniqueFreqs = useMemo(() => {
                 if (!rawData) return [];
                 const freqs = Array.from(new Set(rawData.surveyData.map(d => d[COLUMNS.FREQUENCY]))).filter(f => f && String(f).trim() !== '');
@@ -241,265 +302,105 @@
                 });
             }, [rawData]);
 
-            // 歷年趨勢資料 (Hook 必須放在 early return 之前)
             const combinedTrendData = useMemo(() => {
                 if (!rawData || !rawData.historyData) return [];
-                
-                // 取出歷年資料，過濾掉可能不小心寫入的114年舊資料
                 const pastData = rawData.historyData.filter(d => !String(d['年度']).includes('114'));
-                
-                // 計算當前這份問卷的 Q2, Q5 平均數
                 const currentQ5 = parseFloat(calcAvg(filteredData, 'Q5'));
                 const currentQ2 = parseFloat(calcAvg(filteredData, 'Q2'));
                 
-                // 將原始資料整理格式，自動加上 "年" 字以利圖表顯示
                 const formattedPastData = pastData.map(d => ({
                     label: String(d['年度']).includes('年') ? d['年度'] : `${d['年度']}年`,
                     Q5: d['Q5'],
                     Q2: d['Q2']
                 }));
                 
-                // 將「本期」動態加入
                 return [
                     ...formattedPastData,
                     { label: '114年(本期)', Q5: currentQ5 || 0, Q2: currentQ2 || 0 }
                 ];
             }, [rawData, filteredData]);
 
-            if (loading) return <div className="flex h-screen items-center justify-center text-xl text-blue-600 font-bold">載入資料中，請稍候...</div>;
-            if (error) return <div className="flex h-screen items-center justify-center text-xl text-red-600">發生錯誤: {error}</div>;
+            if (loading) return (
+                <div className="flex h-screen items-center justify-center flex-col gap-4 bg-gray-50">
+                    <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-700 rounded-full animate-spin"></div>
+                    <div className="text-xl text-gray-800 font-bold tracking-wide">資料載入中，請稍候...</div>
+                </div>
+            );
+            if (error) return <div className="flex h-screen items-center justify-center text-xl font-bold text-red-700 bg-red-50">發生錯誤: {error}</div>;
 
             const allData = rawData.surveyData;
             const qMap = rawData.questionMap;
 
-            // ================= 區塊圖表設定 =================
-            
-            // 區塊一：歷年趨勢
+            // ================= 區塊圖表設定 (字體加粗加大) =================
             const trendOption = {
-                tooltip: { trigger: 'axis' },
-                legend: { data: ['整體滿意度 (Q5)', '系統穩定度 (Q2)'], bottom: 0 },
-                grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
-                // X 軸改為使用整理過後的 label
-                xAxis: { type: 'category', data: combinedTrendData.map(d => d.label), axisLine: { lineStyle: { color: '#9ca3af' } } },
-                yAxis: { type: 'value', min: 1, max: 5 },
+                tooltip: { trigger: 'axis', backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#9ca3af', textStyle: {color: '#111827', fontWeight: 'bold'} },
+                legend: { data: ['整體滿意度 (Q5)', '系統穩定度 (Q2)'], bottom: 0, icon: 'circle', textStyle: { fontSize: 13, color: colors.grayText, fontWeight: 'bold' } },
+                grid: { left: '2%', right: '5%', bottom: '15%', top: '10%', containLabel: true },
+                xAxis: { type: 'category', data: combinedTrendData.map(d => d.label), axisLine: { lineStyle: { color: colors.grayBase, width: 2 } }, axisLabel: { color: colors.grayText, fontSize: 13, fontWeight: 'bold' } },
+                yAxis: { type: 'value', min: 1, max: 5, splitLine: { lineStyle: { type: 'dashed', color: '#cbd5e1' } }, axisLabel: { color: colors.grayText, fontSize: 13, fontWeight: 'bold' } },
                 series: [
-                    // 資料對應改為 d.Q5 和 d.Q2
-                    { name: '整體滿意度 (Q5)', type: 'line', data: combinedTrendData.map(d => d.Q5), smooth: true, itemStyle: { color: '#3b82f6' }, lineStyle: { width: 3 } },
-                    { name: '系統穩定度 (Q2)', type: 'line', data: combinedTrendData.map(d => d.Q2), smooth: true, itemStyle: { color: '#10b981' }, lineStyle: { width: 3 } }
+                    { name: '整體滿意度 (Q5)', type: 'line', data: combinedTrendData.map(d => d.Q5), smooth: true, symbolSize: 10, itemStyle: { color: colors.primary }, lineStyle: { width: 4 } },
+                    { name: '系統穩定度 (Q2)', type: 'line', data: combinedTrendData.map(d => d.Q2), smooth: true, symbolSize: 10, itemStyle: { color: colors.accent }, lineStyle: { width: 4 } }
                 ]
             };
 
-            // 區塊二：驅動分析 (長條圖)
-            // 嚴格排除任何名稱包含 feedback 的欄位，避免干擾
             const correlations = Object.keys(qMap)
                 .filter(q => q !== 'Q5' && !String(q).toLowerCase().includes('feedback'))
-                .map(q => {
-                    const r = calcCorrelation(filteredData, 'Q5', q);
-                    return {
-                        name: `(${q}) ${qMap[q]}`, // 加入題號
-                        val: r !== null ? parseFloat(r) : null
-                    };
-                })
-                .filter(c => c.val !== null && !isNaN(c.val)) // 濾除無效或該身分沒填答的題目
-                .sort((a, b) => a.val - b.val) // 升冪排序 (ECharts 由下往上畫)
-                .slice(-3); // 只擷取最後 3 筆資料 (即相關性最高的 Top 3)
+                .map(q => ({
+                    name: `(${q}) ${qMap[q]}`,
+                    val: (() => { const r = calcCorrelation(filteredData, 'Q5', q); return r !== null ? parseFloat(r) : null; })()
+                }))
+                .filter(c => c.val !== null && !isNaN(c.val))
+                .sort((a, b) => a.val - b.val)
+                .slice(-3);
 
             const driverOption = {
-                tooltip: { trigger: 'axis', formatter: '{b}: R = {c}' },
-                grid: { left: '3%', right: '10%', bottom: '3%', top: '3%', containLabel: true },
-                xAxis: { type: 'value', name: '相關係數 (r)', max: 1, min: 0 }, // 強制以 0 為起點，不顯示負值
-                yAxis: { 
-                    type: 'category', 
-                    data: correlations.map(c => c.name), 
-                    axisLabel: { width: 180, overflow: 'break', interval: 0, fontSize: 12, lineHeight: 16 } 
-                },
+                tooltip: { trigger: 'axis', formatter: '{b}: R = {c}', backgroundColor: 'rgba(255,255,255,0.95)' },
+                grid: { left: '2%', right: '15%', bottom: '2%', top: '5%', containLabel: true },
+                xAxis: { type: 'value', name: '相關係數 (r)', max: 1, min: 0, splitLine: { lineStyle: { type: 'dashed', color: '#cbd5e1' } }, axisLabel: { color: colors.grayText, fontWeight: 'bold' } },
+                yAxis: { type: 'category', data: correlations.map(c => c.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { width: 170, overflow: 'break', interval: 0, fontSize: 13, lineHeight: 18, color: '#111827', fontWeight: 'bold' } },
                 series: [{
                     type: 'bar',
                     data: correlations.map(c => c.val),
-                    itemStyle: { 
-                        color: '#6366f1', // 統一顯示正向驅動的藍紫色
-                        borderRadius: [0, 4, 4, 0] 
-                    },
-                    label: { show: true, position: 'right' }
+                    itemStyle: { color: colors.primary, borderRadius: [0, 4, 4, 0] },
+                    label: { show: true, position: 'right', color: colors.primary, fontSize: 14, fontWeight: '900' },
+                    barWidth: '50%'
                 }]
             };
 
-            // 區塊二：分層使用滿意度
             const freqAvg = uniqueFreqs.map(f => {
                 const d = filteredData.filter(x => x[COLUMNS.FREQUENCY] === f);
                 return d.length ? parseFloat(calcAvg(d, 'Q5')) : 0;
             });
             const segmentationOption = {
-                tooltip: { trigger: 'axis' },
-                grid: { left: '3%', right: '4%', bottom: '10%', top: '15%', containLabel: true }, // top 加大一點空間放數字
-                xAxis: { type: 'category', data: uniqueFreqs, axisLabel: { interval: 0, rotate: uniqueFreqs.length > 4 ? 30 : 0 } },
-                yAxis: { type: 'value', min: 1, max: 5 },
-                series: [
-                    { 
-                        name: '平均滿意度', 
-                        type: 'bar', 
-                        data: freqAvg, 
-                        barMaxWidth: 60, // 限制柱子最大寬度，避免選項太少時過胖
-                        itemStyle: { color: '#8b5cf6', borderRadius: [4, 4, 0, 0] },
-                        label: { 
-                            show: true, 
-                            position: 'top', 
-                            formatter: '{c}', // 直接在柱體上方顯示分數
-                            color: '#4b5563', 
-                            fontWeight: 'bold' 
-                        } 
-                    }
-                ]
-            };
-
-            // 區塊四：4-1 Radar
-            const getGroupAvg = (data, keys) => {
-                let sum = 0, count = 0;
-                data.forEach(d => {
-                    keys.forEach(k => {
-                        if (typeof d[k] === 'number') { sum += d[k]; count++; }
-                    });
-                });
-                return count ? (sum / count).toFixed(2) : 0;
-            };
-            const radarCurrent = [
-                getGroupAvg(filteredData, ['Q1', 'Q2']),
-                getGroupAvg(filteredData, ['Q3', 'Q4', 'S1']),
-                getGroupAvg(filteredData, ['T7', 'S5'])
-            ];
-            const radarAll = [
-                getGroupAvg(allData, ['Q1', 'Q2']),
-                getGroupAvg(allData, ['Q3', 'Q4', 'S1']),
-                getGroupAvg(allData, ['T7', 'S5'])
-            ];
-            const radarOption = {
-                tooltip: { trigger: 'item' },
-                legend: { data: ['目前篩選單位', '全院平均'], bottom: 0 },
-                radar: {
-                    indicator: [
-                        { name: '系統品質\n(介面/穩定)', max: 5 },
-                        { name: '資訊品質\n(查詢/進度)', max: 5 },
-                        { name: '服務品質\n(問題求助)', max: 5 }
-                    ],
-                    radius: '65%',
-                    axisName: { color: '#4b5563', fontWeight: 'bold' }
-                },
-                series: [{
-                    type: 'radar',
-                    // [視覺優化] 將全院平均放前面讓它墊在底層，加粗線條並增加背景色塊
-                    data: [
-                        { 
-                            value: radarAll, 
-                            name: '全院平均', 
-                            symbol: 'circle',
-                            symbolSize: 6,
-                            itemStyle: { color: '#9ca3af' }, 
-                            lineStyle: { type: 'dashed', width: 2 }, 
-                            areaStyle: { color: 'rgba(156, 163, 175, 0.15)' } 
-                        },
-                        { 
-                            value: radarCurrent, 
-                            name: '目前篩選單位', 
-                            symbol: 'circle',
-                            symbolSize: 8,
-                            itemStyle: { color: '#0ea5e9' }, 
-                            lineStyle: { width: 3 }, 
-                            areaStyle: { color: 'rgba(14, 165, 233, 0.3)' } 
-                        }
-                    ]
+                tooltip: { trigger: 'axis', backgroundColor: 'rgba(255,255,255,0.95)' },
+                grid: { left: '2%', right: '4%', bottom: '5%', top: '15%', containLabel: true },
+                xAxis: { type: 'category', data: uniqueFreqs, axisLine: { lineStyle: { color: colors.grayBase, width: 2 } }, axisTick: { show: false }, axisLabel: { interval: 0, rotate: uniqueFreqs.length > 4 ? 30 : 0, color: colors.grayText, fontSize: 13, fontWeight: 'bold' } },
+                yAxis: { type: 'value', min: 1, max: 5, splitLine: { lineStyle: { type: 'dashed', color: '#cbd5e1' } }, axisLabel: { color: colors.grayText, fontWeight: 'bold' } },
+                series: [{ 
+                    name: '平均滿意度', type: 'bar', data: freqAvg, barMaxWidth: 60,
+                    itemStyle: { color: colors.primaryLight, borderRadius: [4, 4, 0, 0] }, 
+                    label: { show: true, position: 'top', formatter: '{c}', color: colors.primary, fontSize: 15, fontWeight: '900' } 
                 }]
             };
 
-            // 區塊四：4-2 Gauge & Dual Bar
-            const t2Avg = parseFloat(calcAvg(filteredData, 'T2'));
-            const gaugeOption = {
-                series: [{
-                    type: 'gauge', min: 0, max: 5, splitNumber: 5,
-                    axisLine: { lineStyle: { width: 10, color: [[t2Avg/5, '#f59e0b'], [1, '#e5e7eb']] } },
-                    pointer: { itemStyle: { color: '#4b5563' } },
-                    axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
-                    detail: { valueAnimation: true, formatter: '{value} 分', fontSize: 20, offsetCenter: [0, '70%'] },
-                    data: [{ value: t2Avg, name: 'T2: 流程順暢度' }]
-                }]
-            };
-            
-            const dualBarOption = {
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                legend: { bottom: 0, textStyle: { fontSize: 10 } },
-                grid: { left: '5%', right: '5%', top: '10%', bottom: '25%', containLabel: true },
-                xAxis: { type: 'value', max: 5 },
-                yAxis: { type: 'category', data: ['系統熟練度'] },
-                series: [
-                    { name: 'T1 教師自評熟練度', type: 'bar', data: [calcAvg(filteredData, 'T1')], itemStyle: { color: '#3b82f6', borderRadius: 4 } },
-                    { name: 'S4 學員評估教師熟練度', type: 'bar', data: [calcAvg(filteredData, 'S4')], itemStyle: { color: '#ec4899', borderRadius: 4 } }
-                ]
-            };
-
-            // 區塊四：4-3 Stacked Bar
-            const targetKeys4_3 = ['T3', 'S2', 'S3'];
-            const stackData4_3 = targetKeys4_3.map(k => {
-                const counts = countScores(filteredData, k);
-                const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-                return {
-                    name: `(${k}) ${qMap[k]}`,
-                    s1: (counts[1]/total*100), s2: (counts[2]/total*100), s3: (counts[3]/total*100),
-                    s4: (counts[4]/total*100), s5: (counts[5]/total*100)
-                };
-            }).reverse();
-
-            const stackedOption4_3 = {
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (params) => {
-                    let res = params[0].name + '<br/>';
-                    params.forEach(p => res += p.marker + p.seriesName + ': ' + p.value.toFixed(1) + '%<br/>');
-                    return res;
-                }},
-                legend: { data: ['非常不滿意', '不滿意', '普通', '滿意', '非常滿意'], bottom: 0, textStyle: {fontSize: 10} },
-                grid: { left: '3%', right: '5%', bottom: '15%', top: '5%', containLabel: true },
-                xAxis: { type: 'value', max: 100, show: false },
-                yAxis: { 
-                    type: 'category', 
-                    data: stackData4_3.map(d => d.name), 
-                    axisLabel: { width: 160, overflow: 'break', interval: 0, fontSize: 12, lineHeight: 16 } 
-                },
-                series: [
-                    { name: '非常不滿意', type: 'bar', stack: 't', itemStyle: { color: '#ef4444' }, data: stackData4_3.map(d => d.s1) },
-                    { name: '不滿意', type: 'bar', stack: 't', itemStyle: { color: '#f87171' }, data: stackData4_3.map(d => d.s2) },
-                    { name: '普通', type: 'bar', stack: 't', itemStyle: { color: '#d1d5db' }, data: stackData4_3.map(d => d.s3) },
-                    { name: '滿意', type: 'bar', stack: 't', itemStyle: { color: '#34d399' }, data: stackData4_3.map(d => d.s4) },
-                    { name: '非常滿意', type: 'bar', stack: 't', itemStyle: { color: '#10b981' }, data: stackData4_3.map(d => d.s5) },
-                ]
-            };
-
-            // ==========================================
-            // 處理區塊三：緊湊型 HTML/CSS 視覺化清單
-            // ==========================================
-            // 過濾掉 Feedback，只保留正常的題目 Q, S, T 等
+            // 區塊三資料準備
             const validSec3Keys = Object.keys(qMap).filter(k => !String(k).toLowerCase().includes('feedback'));
-
-            // 準備每列資料
             const sec3ListData = validSec3Keys.map(k => {
                 const curAvg = parseFloat(calcAvg(filteredData, k));
                 const allAvg = parseFloat(calcAvg(allData, k));
-                
-                if (curAvg === 0) return null; // 隱藏沒資料的列
+                if (curAvg === 0) return null;
 
-                // 分佈資料
                 const counts = countScores(filteredData, k);
                 const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
                 const distData = [
-                    (counts[1]/total*100).toFixed(1),
-                    (counts[2]/total*100).toFixed(1),
-                    (counts[3]/total*100).toFixed(1),
-                    (counts[4]/total*100).toFixed(1),
-                    (counts[5]/total*100).toFixed(1)
+                    (counts[1]/total*100).toFixed(1), (counts[2]/total*100).toFixed(1),
+                    (counts[3]/total*100).toFixed(1), (counts[4]/total*100).toFixed(1), (counts[5]/total*100).toFixed(1)
                 ];
 
                 const diff = (curAvg - allAvg).toFixed(2);
-                const isPositive = diff >= 0;
-
-                return { k, text: qMap[k], curAvg, allAvg, diff, isPositive, distData };
+                return { k, text: qMap[k], curAvg, allAvg, diff, isPositive: diff >= 0, distData };
             }).filter(item => item !== null).sort((a, b) => {
-                // [修改點] 依據題號進行排序：Q系列優先 -> 接著T系列 -> 最後S系列
                 const getWeight = (key) => {
                     const p = key.charAt(0).toUpperCase();
                     const n = parseInt(key.slice(1), 10) || 0;
@@ -511,20 +412,108 @@
                 return getWeight(a.k) - getWeight(b.k);
             });
 
+            // 區塊四資料準備
+            const getGroupAvg = (data, keys) => {
+                let sum = 0, count = 0;
+                data.forEach(d => { keys.forEach(k => { if (typeof d[k] === 'number') { sum += d[k]; count++; }});});
+                return count ? (sum / count).toFixed(2) : 0;
+            };
+
+            const radarCurrent = [
+                getGroupAvg(filteredData, ['Q1', 'Q2']),
+                getGroupAvg(filteredData, ['Q3', 'Q4', 'S1']),
+                getGroupAvg(filteredData, ['T7', 'S5'])
+            ];
+            
+            const radarAll = [
+                getGroupAvg(allData, ['Q1', 'Q2']),
+                getGroupAvg(allData, ['Q3', 'Q4', 'S1']),
+                getGroupAvg(allData, ['T7', 'S5'])
+            ];
+
+            const radarOption = {
+                tooltip: { trigger: 'item', backgroundColor: 'rgba(255,255,255,0.95)' },
+                legend: { data: ['目前篩選單位', '全院平均'], bottom: 0, icon: 'circle', textStyle: { fontSize: 13, fontWeight: 'bold', color: '#374151' } },
+                radar: {
+                    indicator: [
+                        { name: '系統品質\n(介面/穩定)', max: 5 },
+                        { name: '資訊品質\n(查詢/進度)', max: 5 },
+                        { name: '服務品質\n(問題求助)', max: 5 }
+                    ],
+                    radius: '60%', 
+                    axisName: { color: '#111827', fontSize: 14, fontWeight: '900' },
+                    splitArea: { areaStyle: { color: ['#f9fafb', '#ffffff'] } },
+                    axisLine: { lineStyle: { color: '#9ca3af', width: 2 } },
+                    splitLine: { lineStyle: { color: '#cbd5e1', width: 2 } }
+                },
+                series: [{
+                    type: 'radar',
+                    data: [
+                        { value: radarAll, name: '全院平均', symbol: 'none', itemStyle: { color: '#6b7280' }, lineStyle: { type: 'dashed', width: 3 }, areaStyle: { color: 'rgba(107, 114, 128, 0.1)' } },
+                        { value: radarCurrent, name: '目前篩選單位', symbol: 'circle', symbolSize: 8, itemStyle: { color: colors.primary }, lineStyle: { width: 4 }, areaStyle: { color: 'rgba(29, 78, 216, 0.2)' } }
+                    ]
+                }]
+            };
+
+            const t2Avg = parseFloat(calcAvg(filteredData, 'T2'));
+            
+            const dualBarOption = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(255,255,255,0.95)' },
+                legend: { bottom: 0, textStyle: { fontSize: 13, color: colors.grayText, fontWeight: 'bold' }, icon: 'circle' },
+                grid: { left: '2%', right: '10%', top: '10%', bottom: '25%', containLabel: true },
+                xAxis: { type: 'value', max: 5, splitLine: { lineStyle: { type: 'dashed', color: '#cbd5e1' } }, axisLabel: { color: colors.grayText, fontWeight: 'bold' } },
+                yAxis: { type: 'category', data: ['系統熟練度'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false } },
+                series: [
+                    { name: 'T1 教師自評', type: 'bar', data: [calcAvg(filteredData, 'T1')], itemStyle: { color: colors.primary, borderRadius: 4 }, barWidth: '35%', label: {show: true, position: 'right', color: colors.primary, fontWeight: '900', fontSize: 14} },
+                    { name: 'S4 學員評估', type: 'bar', data: [calcAvg(filteredData, 'S4')], itemStyle: { color: colors.secondary, borderRadius: 4 }, barWidth: '35%', label: {show: true, position: 'right', color: colors.secondary, fontWeight: '900', fontSize: 14} }
+                ]
+            };
+
+            const stackData4_3 = ['T3', 'S2', 'S3'].map(k => {
+                const counts = countScores(filteredData, k);
+                const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+                return {
+                    name: `(${k}) ${qMap[k]}`,
+                    s1: (counts[1]/total*100), s2: (counts[2]/total*100), s3: (counts[3]/total*100),
+                    s4: (counts[4]/total*100), s5: (counts[5]/total*100)
+                };
+            }).reverse();
+
+            const stackedOption4_3 = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(255,255,255,0.95)', formatter: (params) => {
+                    let res = `<div class="font-bold text-base mb-1">${params[0].name}</div>`;
+                    params.forEach(p => res += `<div class="text-sm font-bold">${p.marker} ${p.seriesName}: ${p.value.toFixed(1)}%</div>`);
+                    return res;
+                }},
+                legend: { data: ['非常不滿意', '不滿意', '普通', '滿意', '非常滿意'], bottom: 0, textStyle: {fontSize: 12, color: colors.grayText, fontWeight: 'bold'}, icon: 'roundRect', itemWidth: 16, itemHeight: 10 },
+                grid: { left: '2%', right: '5%', bottom: '15%', top: '5%', containLabel: true },
+                xAxis: { type: 'value', max: 100, show: false },
+                yAxis: { type: 'category', data: stackData4_3.map(d => d.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { width: 170, overflow: 'break', interval: 0, fontSize: 13, lineHeight: 18, color: '#111827', fontWeight: 'bold' } },
+                series: [
+                    { name: '非常不滿意', type: 'bar', stack: 't', itemStyle: { color: colors.score1 }, data: stackData4_3.map(d => d.s1), barWidth: '50%' },
+                    { name: '不滿意', type: 'bar', stack: 't', itemStyle: { color: colors.score2 }, data: stackData4_3.map(d => d.s2) },
+                    { name: '普通', type: 'bar', stack: 't', itemStyle: { color: colors.score3 }, data: stackData4_3.map(d => d.s3) },
+                    { name: '滿意', type: 'bar', stack: 't', itemStyle: { color: colors.score4 }, data: stackData4_3.map(d => d.s4) },
+                    { name: '非常滿意', type: 'bar', stack: 't', itemStyle: { color: colors.score5, borderRadius: [0, 4, 4, 0] }, data: stackData4_3.map(d => d.s5) },
+                ]
+            };
 
             return (
-                <div className="min-h-screen pb-12">
+                <div className="min-h-screen pb-16">
+                    {/* 頂部高對比彩色條 */}
+                    <div className="h-2 w-full bg-gradient-to-r from-blue-800 via-blue-500 to-cyan-400 fixed top-0 z-[60]"></div>
+                    
                     {/* 頂部固定過濾器 */}
-                    <div className="sticky top-0 z-50 glass-header shadow-sm px-4 md:px-6 py-3 md:py-4 mb-4 md:mb-6">
-                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4">
-                            <div className="flex items-center gap-2 text-lg md:text-xl font-bold text-gray-800">
-                                <Icons.Filter />
+                    <div className="sticky top-2 z-50 glass-header px-4 md:px-6 py-4 mb-6 md:mb-8 shadow-sm">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 text-xl md:text-2xl font-black text-gray-900 tracking-tight">
+                                <div className="p-2 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg"><Icons.Filter /></div>
                                 E-Portfolio 成效儀表板
                             </div>
-                            <div className="flex flex-col sm:flex-row flex-wrap gap-2 md:gap-4 items-stretch sm:items-center w-full md:w-auto">
-                                <select className="w-full sm:w-auto border border-gray-300 rounded-md px-3 py-2 md:py-1.5 bg-white text-sm shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+                            <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center w-full md:w-auto">
+                                <select className="w-full sm:w-auto border-2 border-gray-300 rounded-lg px-4 py-2.5 text-sm font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
                                     value={filters.profession} onChange={e => setFilters({...filters, profession: e.target.value})}>
-                                    <option value="全院總計">職類：全院總計</option>
+                                    <option value="全院總計">🏥 全院總計</option>
                                     <option value="醫師">醫師</option>
                                     <option value="藥事">藥事</option>
                                     <option value="醫事放射">醫事放射</option>
@@ -538,15 +527,15 @@
                                     <option value="臨床心理">臨床心理</option>
                                     <option value="語言治療">語言治療</option>
                                 </select>
-                                <select className="w-full sm:w-auto border border-gray-300 rounded-md px-3 py-2 md:py-1.5 bg-white text-sm shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                <select className="w-full sm:w-auto border-2 border-gray-300 rounded-lg px-4 py-2.5 text-sm font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
                                     value={filters.role} onChange={e => setFilters({...filters, role: e.target.value})}>
-                                    <option value="全部">身分：全部</option>
+                                    <option value="全部">👤 所有身分</option>
                                     <option value="臨床教師">臨床教師</option>
                                     <option value="學員">學員</option>
                                 </select>
-                                <select className="w-full sm:w-auto border border-gray-300 rounded-md px-3 py-2 md:py-1.5 bg-white text-sm shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                <select className="w-full sm:w-auto border-2 border-gray-300 rounded-lg px-4 py-2.5 text-sm font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
                                     value={filters.frequency} onChange={e => setFilters({...filters, frequency: e.target.value})}>
-                                    <option value="全部">頻率：全部</option>
+                                    <option value="全部">📊 所有頻率</option>
                                     {uniqueFreqs.map(f => (
                                         <option key={f} value={f}>{f}</option>
                                     ))}
@@ -555,39 +544,39 @@
                         </div>
                     </div>
 
-                    <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-6 md:space-y-8">
+                    <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-8 md:space-y-12">
                         
                         {/* 📍 區塊一：決策總覽與歷年趨勢 */}
                         <section>
-                            <h2 className="text-lg md:text-xl font-bold border-l-4 border-blue-600 pl-3 mb-3 md:mb-4 text-gray-800">📍 區塊一：決策總覽與歷年趨勢 (Executive Summary & Trends)</h2>
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                            <h2 className="text-xl md:text-2xl font-black border-l-8 border-blue-600 pl-4 mb-5 text-gray-900">區塊一：決策總覽與歷年趨勢</h2>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-6">
                                 {/* KPIs */}
-                                <div className="grid grid-cols-2 gap-3 md:gap-4">
-                                    <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 flex flex-col items-center justify-center text-center">
-                                        <div className="text-blue-500 mb-1 md:mb-2"><Icons.Users /></div>
-                                        <div className="text-xs md:text-sm text-gray-500 font-medium">總填答人數</div>
-                                        <div className="text-2xl md:text-3xl font-black text-gray-800">{filteredData.length}</div>
+                                <div className="grid grid-cols-2 gap-4 md:gap-5">
+                                    <div className="dashboard-card p-5 border-b-4 border-b-blue-600 flex flex-col items-center justify-center text-center">
+                                        <div className="text-blue-700 mb-3"><Icons.Users /></div>
+                                        <div className="text-sm font-bold text-gray-600 mb-1">總填答人數</div>
+                                        <div className="text-4xl font-black text-gray-900">{filteredData.length}</div>
                                     </div>
-                                    <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 flex flex-col items-center justify-center text-center">
-                                        <div className="text-yellow-500 mb-1 md:mb-2"><Icons.Star /></div>
-                                        <div className="text-xs md:text-sm text-gray-500 font-medium">整體滿意度 (Q5)</div>
-                                        <div className="text-2xl md:text-3xl font-black text-gray-800">{calcAvg(filteredData, 'Q5')} <span className="text-xs md:text-sm font-normal">/ 5</span></div>
+                                    <div className="dashboard-card p-5 border-b-4 border-b-yellow-500 flex flex-col items-center justify-center text-center">
+                                        <div className="text-yellow-600 mb-3"><Icons.Star /></div>
+                                        <div className="text-sm font-bold text-gray-600 mb-1">整體滿意度 (Q5)</div>
+                                        <div className="text-4xl font-black text-gray-900">{calcAvg(filteredData, 'Q5')} <span className="text-base font-bold text-gray-400">/ 5</span></div>
                                     </div>
-                                    <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 flex flex-col items-center justify-center text-center">
-                                        <div className="text-green-500 mb-1 md:mb-2"><Icons.Server /></div>
-                                        <div className="text-xs md:text-sm text-gray-500 font-medium">系統穩定度 (Q2)</div>
-                                        <div className="text-2xl md:text-3xl font-black text-gray-800">{calcAvg(filteredData, 'Q2')} <span className="text-xs md:text-sm font-normal">/ 5</span></div>
+                                    <div className="dashboard-card p-5 border-b-4 border-b-green-600 flex flex-col items-center justify-center text-center">
+                                        <div className="text-green-700 mb-3"><Icons.Server /></div>
+                                        <div className="text-sm font-bold text-gray-600 mb-1">系統穩定度 (Q2)</div>
+                                        <div className="text-4xl font-black text-gray-900">{calcAvg(filteredData, 'Q2')} <span className="text-base font-bold text-gray-400">/ 5</span></div>
                                     </div>
-                                    <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 flex flex-col items-center justify-center text-center">
-                                        <div className="text-purple-500 mb-1 md:mb-2"><Icons.Clock /></div>
-                                        <div className="text-xs md:text-sm text-gray-500 font-medium">行政減量有感 (T3)</div>
-                                        <div className="text-2xl md:text-3xl font-black text-gray-800">{calcAvg(filteredData, 'T3')} <span className="text-xs md:text-sm font-normal">/ 5</span></div>
+                                    <div className="dashboard-card p-5 border-b-4 border-b-rose-600 flex flex-col items-center justify-center text-center">
+                                        <div className="text-rose-700 mb-3"><Icons.Clock /></div>
+                                        <div className="text-sm font-bold text-gray-600 mb-1">行政減量有感 (T3)</div>
+                                        <div className="text-4xl font-black text-gray-900">{calcAvg(filteredData, 'T3')} <span className="text-base font-bold text-gray-400">/ 5</span></div>
                                     </div>
                                 </div>
                                 {/* 趨勢圖 */}
-                                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 min-h-[300px] md:h-64 flex flex-col">
-                                    <div className="text-sm font-bold text-gray-700 mb-1">歷年關鍵指標趨勢</div>
-                                    <div className="text-xs text-gray-400 mb-2">* 註：112、113年無法隨職類、身分、頻率選項而有所變化</div>
+                                <div className="lg:col-span-2 dashboard-card p-5 md:p-6 min-h-[350px] md:h-full flex flex-col">
+                                    <div className="text-lg font-black text-gray-900 mb-1">歷年關鍵指標趨勢</div>
+                                    <div className="text-sm font-bold text-gray-500 mb-4">* 註：112、113年為固定基準，無法隨上方選項連動變更</div>
                                     <div className="flex-grow min-h-0">
                                         <ReactECharts option={trendOption} />
                                     </div>
@@ -597,18 +586,18 @@
 
                         {/* 📍 區塊二：關鍵驅動與分層解析 */}
                         <section>
-                            <h2 className="text-lg md:text-xl font-bold border-l-4 border-indigo-600 pl-3 mb-3 md:mb-4 text-gray-800">📍 區塊二：關鍵驅動與分層解析 (Driver & Segmentation)</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                                <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 min-h-[300px] md:h-80 flex flex-col">
-                                    <div className="text-sm font-bold text-gray-700 mb-1">滿意度關鍵驅動因子 (與 Q5 的相關性)</div>
-                                    <div className="text-xs text-gray-500 mb-2">數值越高代表該項目越能帶動整體滿意度</div>
+                            <h2 className="text-xl md:text-2xl font-black border-l-8 border-blue-600 pl-4 mb-5 text-gray-900">區塊二：關鍵驅動與分層解析</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+                                <div className="dashboard-card p-5 md:p-6 min-h-[350px] md:h-[380px] flex flex-col">
+                                    <div className="text-lg font-black text-gray-900 mb-1">滿意度關鍵驅動因子 <span className="text-sm font-bold text-gray-500 ml-2">(Top 3)</span></div>
+                                    <div className="text-sm font-bold text-gray-500 mb-4">數值越高代表該項目越能帶動「整體滿意度」的提升</div>
                                     <div className="flex-grow min-h-0">
                                         <ReactECharts option={driverOption} />
                                     </div>
                                 </div>
-                                <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 min-h-[300px] md:h-80 flex flex-col">
-                                    <div className="text-sm font-bold text-gray-700 mb-1">使用頻率分層滿意度</div>
-                                    <div className="text-xs text-gray-500 mb-2">檢視「越常用是否越滿意」(黏著度診斷)</div>
+                                <div className="dashboard-card p-5 md:p-6 min-h-[350px] md:h-[380px] flex flex-col">
+                                    <div className="text-lg font-black text-gray-900 mb-1">使用頻率分層滿意度</div>
+                                    <div className="text-sm font-bold text-gray-500 mb-4">檢視「越常用是否越滿意」(系統黏著度診斷)</div>
                                     <div className="flex-grow min-h-0">
                                         <ReactECharts option={segmentationOption} />
                                     </div>
@@ -618,73 +607,70 @@
 
                         {/* 📍 區塊三：全題項滿意度剖析 (緊湊型清單) */}
                         <section>
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 md:mb-4">
-                                <h2 className="text-lg md:text-xl font-bold border-l-4 border-teal-600 pl-3 text-gray-800">📍 區塊三：全題項滿意度剖析</h2>
-                                <div className="bg-gray-200 p-1 rounded-lg flex text-sm w-full sm:w-auto">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
+                                <h2 className="text-xl md:text-2xl font-black border-l-8 border-blue-600 pl-4 text-gray-900">區塊三：全題項滿意度剖析</h2>
+                                <div className="bg-gray-200 p-1.5 rounded-xl flex text-sm w-full sm:w-auto border border-gray-300 shadow-sm">
                                     <button 
-                                        className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-1 rounded-md transition-colors ${sec3Mode === 'benchmark' ? 'bg-white shadow font-bold text-teal-700' : 'text-gray-600 hover:bg-gray-300'}`}
+                                        className={`flex-1 sm:flex-none px-5 py-2 rounded-lg transition-all font-black ${sec3Mode === 'benchmark' ? 'bg-white shadow-md text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
                                         onClick={() => setSec3Mode('benchmark')}
                                     >全院基準對比</button>
                                     <button 
-                                        className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-1 rounded-md transition-colors ${sec3Mode === 'stacked' ? 'bg-white shadow font-bold text-teal-700' : 'text-gray-600 hover:bg-gray-300'}`}
+                                        className={`flex-1 sm:flex-none px-5 py-2 rounded-lg transition-all font-black ${sec3Mode === 'stacked' ? 'bg-white shadow-md text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
                                         onClick={() => setSec3Mode('stacked')}
                                     >滿意度分佈</button>
                                 </div>
                             </div>
                             
-                            {/* HTML/CSS 視覺化清單佈局 */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="dashboard-card overflow-hidden">
                                 {sec3ListData.length === 0 ? (
-                                    <div className="p-8 text-center text-gray-400">目前選擇的條件無對應題項資料</div>
+                                    <div className="p-12 text-center text-xl font-bold text-gray-400">目前選擇的條件無對應題項資料</div>
                                 ) : (
                                     <div className="flex flex-col">
                                         {sec3ListData.map((item, index) => (
-                                            <div key={item.k} className={`flex flex-col lg:flex-row items-start lg:items-center p-4 ${index !== sec3ListData.length - 1 ? 'border-b border-gray-100' : ''} hover:bg-gray-50 transition-colors`}>
+                                            <div key={item.k} className={`flex flex-col lg:flex-row items-start lg:items-center p-4 md:px-6 md:py-5 ${index !== sec3ListData.length - 1 ? 'border-b-2 border-gray-100' : ''} hover:bg-blue-50/30 transition-colors`}>
                                                 
                                                 {/* 左側：完整不截斷的題目 */}
                                                 <div className="flex-1 mb-4 lg:mb-0 lg:pr-8 w-full">
-                                                    <div className="text-sm text-gray-800 leading-relaxed font-medium break-words">
-                                                        <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-bold mr-2">{item.k}</span>
+                                                    <div className="text-base text-gray-900 leading-relaxed font-black break-words">
+                                                        <span className="inline-block px-2.5 py-1 bg-gray-200 text-gray-800 rounded border border-gray-300 text-sm mr-3">{item.k}</span>
                                                         {item.text}
                                                     </div>
                                                 </div>
 
                                                 {/* 右側：精簡高效的微型視覺化 */}
-                                                <div className="w-full lg:w-[360px] xl:w-[450px] flex-none">
+                                                <div className="w-full lg:w-[400px] xl:w-[500px] flex-none">
                                                     {sec3Mode === 'benchmark' ? (
-                                                        /* --- 基準對比模式 (HTML 雙條圖) --- */
-                                                        <div className="space-y-2.5">
+                                                        <div className="space-y-3.5">
                                                             <div className="flex items-center text-sm">
-                                                                <div className="w-16 text-gray-500 font-medium whitespace-nowrap">當前單位</div>
-                                                                <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden flex mx-3">
-                                                                    <div className="bg-sky-500 h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${(item.curAvg / 5) * 100}%` }}></div>
+                                                                <div className="w-20 text-gray-800 font-black whitespace-nowrap">當前單位</div>
+                                                                <div className="flex-1 bg-gray-200 border border-gray-300 rounded-full h-3.5 overflow-hidden flex mx-3">
+                                                                    <div className="bg-blue-600 h-full transition-all duration-700 ease-out" style={{ width: `${(item.curAvg / 5) * 100}%` }}></div>
                                                                 </div>
-                                                                <div className="w-20 text-right font-bold text-sky-600 flex justify-end items-center gap-1">
+                                                                <div className="w-24 text-right font-black text-blue-700 flex justify-end items-center gap-1.5 text-base">
                                                                     {item.curAvg.toFixed(2)}
-                                                                    <span className={`text-[10px] px-1 rounded ${item.isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                                    <span className={`text-xs px-2 py-0.5 rounded border ${item.isPositive ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
                                                                         {item.isPositive ? '+' : ''}{item.diff}
                                                                     </span>
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center text-sm">
-                                                                <div className="w-16 text-gray-400 whitespace-nowrap">全院基準</div>
-                                                                <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden flex mx-3">
-                                                                    <div className="bg-gray-300 h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${(item.allAvg / 5) * 100}%` }}></div>
+                                                                <div className="w-20 text-gray-600 font-bold whitespace-nowrap">全院基準</div>
+                                                                <div className="flex-1 bg-gray-200 border border-gray-300 rounded-full h-3.5 overflow-hidden flex mx-3">
+                                                                    <div className="bg-gray-400 h-full transition-all duration-700 ease-out" style={{ width: `${(item.allAvg / 5) * 100}%` }}></div>
                                                                 </div>
-                                                                <div className="w-20 text-right text-gray-400">{item.allAvg.toFixed(2)}</div>
+                                                                <div className="w-24 text-right text-gray-600 font-bold text-base">{item.allAvg.toFixed(2)}</div>
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        /* --- 滿意度分佈模式 (HTML 100% 堆疊條) --- */
-                                                        <div className="py-1">
-                                                            <div className="flex h-4 rounded-full overflow-hidden w-full mb-1.5 bg-gray-100">
-                                                                <div className="bg-red-500 hover:opacity-80 transition-all duration-700 ease-out cursor-pointer" style={{width: `${item.distData[0]}%`}} title={`非常不滿意: ${item.distData[0]}%`}></div>
-                                                                <div className="bg-red-400 hover:opacity-80 transition-all duration-700 ease-out cursor-pointer" style={{width: `${item.distData[1]}%`}} title={`不滿意: ${item.distData[1]}%`}></div>
-                                                                <div className="bg-gray-300 hover:opacity-80 transition-all duration-700 ease-out cursor-pointer" style={{width: `${item.distData[2]}%`}} title={`普通: ${item.distData[2]}%`}></div>
-                                                                <div className="bg-emerald-400 hover:opacity-80 transition-all duration-700 ease-out cursor-pointer" style={{width: `${item.distData[3]}%`}} title={`滿意: ${item.distData[3]}%`}></div>
-                                                                <div className="bg-emerald-500 hover:opacity-80 transition-all duration-700 ease-out cursor-pointer" style={{width: `${item.distData[4]}%`}} title={`非常滿意: ${item.distData[4]}%`}></div>
+                                                        <div className="py-2">
+                                                            <div className="flex h-5 rounded-sm overflow-hidden w-full mb-2 bg-gray-200 border border-gray-300">
+                                                                <div className="bg-red-700 border-r border-white/30" style={{width: `${item.distData[0]}%`}} title={`非常不滿意: ${item.distData[0]}%`}></div>
+                                                                <div className="bg-orange-600 border-r border-white/30" style={{width: `${item.distData[1]}%`}} title={`不滿意: ${item.distData[1]}%`}></div>
+                                                                <div className="bg-yellow-600 border-r border-white/30" style={{width: `${item.distData[2]}%`}} title={`普通: ${item.distData[2]}%`}></div>
+                                                                <div className="bg-green-600 border-r border-white/30" style={{width: `${item.distData[3]}%`}} title={`滿意: ${item.distData[3]}%`}></div>
+                                                                <div className="bg-blue-700" style={{width: `${item.distData[4]}%`}} title={`非常滿意: ${item.distData[4]}%`}></div>
                                                             </div>
-                                                            <div className="flex justify-between text-[11px] text-gray-400 px-1">
+                                                            <div className="flex justify-between text-xs text-gray-600 font-bold px-1">
                                                                 <span>不滿意</span>
                                                                 <span>普通</span>
                                                                 <span>滿意</span>
@@ -701,52 +687,155 @@
 
                         {/* 📍 區塊四：理論模型與成效檢核 */}
                         <section>
-                            <h2 className="text-lg md:text-xl font-bold border-l-4 border-amber-500 pl-3 mb-2 md:mb-4 text-gray-800">📍 區塊四：理論模型與成效檢核 (D&M / Workflow Fit)</h2>
-                            <div className="text-sm text-gray-600 mb-4 ml-3 md:ml-4 leading-relaxed">
+                            <h2 className="text-xl md:text-2xl font-black border-l-8 border-blue-600 pl-4 mb-3 text-gray-900">區塊四：理論模型與成效檢核 (D&M / Workflow Fit)</h2>
+                            <div className="text-base text-gray-700 font-medium mb-6 ml-2 md:ml-5 leading-relaxed max-w-5xl">
                                 本區塊以 D&M 資訊系統成功模型為主要分析架構，並納入流程適配概念，從系統品質、資訊品質、服務品質出發，進一步檢視評核流程順暢度、教師操作認知落差，以及系統最終帶來的行政減量、歷程保存與學習管理價值。
                             </div>
                             
-                            {/* [修改點] 將 lg:grid-cols-3 改為 lg:grid-cols-2，讓卡片有更多空間 */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-6">
                                 {/* Card 4-1 */}
-                                <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 flex flex-col">
-                                    <h3 className="font-bold text-gray-800 border-b pb-2 mb-2">4-1. 系統體質健康度 (D&M)</h3>
-                                    <p className="text-xs text-gray-500 mb-2">診斷系統、資訊與服務三大品質表現</p>
-                                    
-                                    {/* [修改點] 新增簡短題目說明，幫助理解 */}
-                                    <div className="text-[11px] text-gray-500 mb-2 bg-gray-50 p-2.5 rounded-lg border border-gray-100 leading-relaxed">
-                                        <span className="font-bold text-gray-700">數值計算方式：</span><br/>
-                                        • <span className="font-semibold text-gray-600">系統品質：</span>Q1(操作介面)、Q2(系統穩定) 均分<br/>
-                                        • <span className="font-semibold text-gray-600">資訊品質：</span>Q3(查詢方便)、Q4(掌握進度)、S1(查閱回饋) 均分<br/>
-                                        • <span className="font-semibold text-gray-600">服務品質：</span>T7(教師獲協助)、S5(學員獲協助) 均分
+                                <div className="dashboard-card p-5 md:p-6 flex flex-col">
+                                    <h3 className="font-black text-gray-900 text-lg mb-1">4-1. 系統體質健康度 (D&M)</h3>
+                                    <p className="text-sm font-bold text-gray-600 mb-4">診斷系統、資訊與服務三大品質表現</p>
+                                    <div className="text-sm text-gray-800 mb-4 bg-gray-100 p-4 rounded-xl border-2 border-gray-200 leading-relaxed">
+                                        <span className="font-black text-gray-900 mb-2 block">📝 數值計算方式：</span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <div><span className="font-black text-blue-700">系統品質：</span><br/>Q1(操作), Q2(穩定)</div>
+                                            <div><span className="font-black text-blue-700">資訊品質：</span><br/>Q3(查詢), Q4(進度), S1(回饋)</div>
+                                            <div><span className="font-black text-blue-700">服務品質：</span><br/>T7(教師獲助), S5(學員獲助)</div>
+                                        </div>
                                     </div>
-
-                                    <div className="flex-grow min-h-[250px]">
+                                    <div className="flex-grow min-h-[300px]">
                                         <ReactECharts option={radarOption} />
                                     </div>
                                 </div>
                                 
                                 {/* Card 4-2 */}
-                                <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 flex flex-col gap-4">
-                                    <div>
-                                        <h3 className="font-bold text-gray-800 border-b pb-2 mb-2">4-2. 臨床任務適配與認知落差</h3>
-                                        <p className="text-xs text-gray-500 mb-3">找出評核流程是否順暢，以及教師自評與學員觀察是否一致</p>
-                                        <p className="text-[11px] text-gray-400 mb-1">衡量教師評核流程是否順暢 (T2)</p>
-                                        <div className="h-40 md:h-32"><ReactECharts option={gaugeOption} /></div>
+                                <div className="dashboard-card p-5 md:p-6 flex flex-col">
+                                    <h3 className="font-black text-gray-900 text-lg mb-1">4-2. 臨床任務適配與認知落差</h3>
+                                    <p className="text-sm font-bold text-gray-600 mb-5">找出評核流程是否順暢，以及教師自評與學員觀察是否一致</p>
+                                    
+                                    <div className="mb-6 bg-white p-5 rounded-xl border-2 border-orange-300 shadow-sm relative overflow-hidden">
+                                        <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
+                                        <div className="flex justify-between items-end mb-3">
+                                            <div className="text-base text-gray-900 font-black">T2. 衡量教師評核流程是否順暢</div>
+                                            <div className="text-4xl font-black text-orange-600 leading-none tracking-tight">{t2Avg > 0 ? t2Avg.toFixed(2) : '0.00'} <span className="text-lg font-bold text-gray-400">/ 5</span></div>
+                                        </div>
+                                        <div className="w-full bg-gray-200 border border-gray-300 rounded-full h-4 overflow-hidden shadow-inner">
+                                            <div className="bg-orange-600 h-full transition-all duration-1000 ease-out" style={{ width: `${(t2Avg / 5) * 100}%` }}></div>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-3 text-right font-bold">* 分數越低，越可能代表流程設計或操作路徑不順暢</p>
                                     </div>
-                                    <div className="border-t pt-2">
-                                        <p className="text-[11px] text-gray-400 mb-1">師生對系統熟練度認知落差</p>
-                                        <div className="h-40 md:h-32"><ReactECharts option={dualBarOption} /></div>
+
+                                    <div className="border-t-2 border-gray-100 pt-5 flex-grow flex flex-col">
+                                        <p className="text-base text-gray-900 font-black mb-2">師生對系統熟練度認知落差</p>
+                                        <div className="flex-grow min-h-[180px]"><ReactECharts option={dualBarOption} /></div>
                                     </div>
                                 </div>
 
                                 {/* Card 4-3 */}
-                                {/* [修改點] 加上 lg:col-span-2 讓這張卡片展開佔滿兩格的寬度 */}
-                                <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 flex flex-col lg:col-span-2">
-                                    <h3 className="font-bold text-gray-800 border-b pb-2 mb-2">4-3. 系統淨效益與核心價值</h3>
-                                    <p className="text-xs text-gray-500 mb-2">評估行政減量、歷程保存與自我管理效益</p>
-                                    <div className="flex-grow min-h-[250px]">
+                                <div className="dashboard-card p-5 md:p-6 flex flex-col lg:col-span-2">
+                                    <h3 className="font-black text-gray-900 text-lg mb-1">4-3. 系統淨效益與核心價值</h3>
+                                    <p className="text-sm font-bold text-gray-600 mb-5">評估行政減量、歷程保存與自我管理效益</p>
+                                    <div className="flex-grow min-h-[300px]">
                                         <ReactECharts option={stackedOption4_3} />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 📍 區塊五：開放式回饋挖掘 */}
+                        <section>
+                            <h2 className="text-xl md:text-2xl font-black border-l-8 border-blue-600 pl-4 mb-5 text-gray-900">區塊五：開放式回饋 (Voice of Customer)</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+                                {/* 卡片1：關鍵字雲 */}
+                                <div className="dashboard-card p-5 md:p-6 md:col-span-1">
+                                    <h3 className="font-black text-gray-900 text-lg mb-5">關鍵字標籤雲 <span className="text-sm font-bold text-gray-500 ml-1">(點擊篩選)</span></h3>
+                                    <div className="flex flex-wrap gap-3">
+                                        <button 
+                                            onClick={() => setSelectedKeyword(null)}
+                                            className={`px-4 py-2 border-2 rounded-lg text-sm font-black transition-all ${selectedKeyword === null ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                                        >全部顯示</button>
+                                        {KEYWORDS.map(kw => {
+                                            const count = filteredData.filter(d => 
+                                                (d[COLUMNS.FEEDBACK_BOTTLENECK] && String(d[COLUMNS.FEEDBACK_BOTTLENECK]).includes(kw)) || 
+                                                (d[COLUMNS.FEEDBACK_OTHER] && String(d[COLUMNS.FEEDBACK_OTHER]).includes(kw))
+                                            ).length;
+                                            if(count === 0) return null;
+                                            
+                                            const isNeg = ["當機", "卡頓", "找不到", "慢"].includes(kw);
+                                            const isPos = ["好用", "進步", "很快"].includes(kw);
+                                            
+                                            // 高對比按鈕設計 (白底粗框線)
+                                            const colorClass = isNeg ? 'bg-white text-red-700 border-red-500 hover:bg-red-50' : 
+                                                             isPos ? 'bg-white text-green-700 border-green-600 hover:bg-green-50' : 
+                                                             'bg-white text-blue-700 border-blue-500 hover:bg-blue-50';
+                                            const activeClass = selectedKeyword === kw ? 'ring-4 ring-offset-2 ring-gray-300 shadow-md' : '';
+
+                                            return (
+                                                <button 
+                                                    key={kw} 
+                                                    onClick={() => setSelectedKeyword(kw)}
+                                                    className={`px-4 py-2 border-2 rounded-lg text-sm font-black transition-all ${colorClass} ${activeClass}`}
+                                                >
+                                                    {kw} <span className="opacity-80 text-xs ml-1">({count})</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                                
+                                {/* 卡片2：留言瀑布流 */}
+                                <div className="dashboard-card md:col-span-2 overflow-hidden flex flex-col h-[550px]">
+                                    {/* Tabs */}
+                                    <div className="flex border-b-2 border-gray-200 bg-gray-100 text-base font-black">
+                                        <button 
+                                            className={`flex-1 py-4 text-center transition-all ${feedbackTab === 'bottleneck' ? 'bg-white text-blue-700 border-t-4 border-t-blue-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200 border-t-4 border-t-transparent'}`}
+                                            onClick={() => setFeedbackTab('bottleneck')}
+                                        >
+                                            最需改善之處
+                                        </button>
+                                        <button 
+                                            className={`flex-1 py-4 text-center transition-all ${feedbackTab === 'other' ? 'bg-white text-blue-700 border-t-4 border-t-blue-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200 border-t-4 border-t-transparent'}`}
+                                            onClick={() => setFeedbackTab('other')}
+                                        >
+                                            其他建議
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Filter Notice */}
+                                    {selectedKeyword && (
+                                        <div className="px-5 py-3 bg-blue-100 border-b-2 border-blue-200 text-sm text-blue-800 flex justify-between items-center font-bold">
+                                            <span>目前篩選包含 <strong className="mx-1 px-2 py-0.5 bg-white rounded border-2 border-blue-300">「{selectedKeyword}」</strong> 的留言</span>
+                                            <button onClick={() => setSelectedKeyword(null)} className="text-blue-700 hover:text-blue-900 underline text-sm font-black">清除篩選</button>
+                                        </div>
+                                    )}
+
+                                    {/* List */}
+                                    <div className="p-5 md:p-6 overflow-y-auto custom-scrollbar flex-grow space-y-4 bg-white">
+                                        {(() => {
+                                            const targetCol = feedbackTab === 'bottleneck' ? COLUMNS.FEEDBACK_BOTTLENECK : COLUMNS.FEEDBACK_OTHER;
+                                            const listData = filteredData.filter(d => {
+                                                const text = String(d[targetCol] || '');
+                                                if (!text.trim()) return false;
+                                                if (selectedKeyword && !text.includes(selectedKeyword)) return false;
+                                                return true;
+                                            });
+
+                                            if (listData.length === 0) {
+                                                return <div className="text-gray-400 text-center py-16 mt-8 flex flex-col items-center"><div className="text-5xl mb-4 opacity-30">📭</div><span className="font-bold text-lg">目前無符合條件之留言</span></div>;
+                                            }
+
+                                            return listData.map((d, i) => (
+                                                <div key={i} className="p-5 bg-gray-50 rounded-xl border-2 border-gray-200 text-base text-gray-900 hover:bg-white hover:border-blue-300 transition-all">
+                                                    <div className="flex flex-wrap gap-2 mb-3 text-xs font-black text-gray-600">
+                                                        <span className="bg-white px-3 py-1.5 rounded-md border border-gray-300">{d[COLUMNS.JOB_CATEGORY]}</span>
+                                                        <span className="bg-white px-3 py-1.5 rounded-md border border-gray-300">{d[COLUMNS.ROLE]}</span>
+                                                    </div>
+                                                    <p className="mt-2 leading-relaxed text-gray-900 font-medium">{d[targetCol]}</p>
+                                                </div>
+                                            ));
+                                        })()}
                                     </div>
                                 </div>
                             </div>
