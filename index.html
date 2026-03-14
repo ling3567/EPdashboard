@@ -480,7 +480,18 @@
                 const isPositive = diff >= 0;
 
                 return { k, text: qMap[k], curAvg, allAvg, diff, isPositive, distData };
-            }).filter(item => item !== null).sort((a, b) => a.curAvg - b.curAvg); // 預設由低分排到高分，突顯需改善項目
+            }).filter(item => item !== null).sort((a, b) => {
+                // [修改點] 依據題號進行排序：Q系列優先 -> 接著T系列 -> 最後S系列
+                const getWeight = (key) => {
+                    const p = key.charAt(0).toUpperCase();
+                    const n = parseInt(key.slice(1), 10) || 0;
+                    if (p === 'Q') return 100 + n;
+                    if (p === 'T') return 200 + n;
+                    if (p === 'S') return 300 + n;
+                    return 999 + n;
+                };
+                return getWeight(a.k) - getWeight(b.k);
+            });
 
 
             return (
