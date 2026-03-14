@@ -58,15 +58,11 @@
             "T7": "教師端遇到問題能獲得有效協助"
         };
 
-        const KEYWORDS = ["當機", "卡頓", "介面", "找不到", "上傳", "很快", "好用", "進步", "教育訓練"];
-
-        // 針對您的試算表表頭設定對應欄位 (對應圖片中的 A1~AB1)
+        // 針對您的試算表表頭設定對應欄位
         const COLUMNS = {
             JOB_CATEGORY: "JobCategory",
             ROLE: "Role",
-            FREQUENCY: "Frequency",
-            // ⚠️ 備註：圖片中的 FeedbackO... 被截斷了，若完整名稱為 FeedbackOpen 或 FeedbackOther，請手動修改下方引號內的值！
-            FEEDBACK: "FeedbackO" 
+            FREQUENCY: "Frequency"
         };
 
         // 產生模擬資料
@@ -99,12 +95,6 @@
                     row.S1 = randScore(); row.S2 = randScore(); row.S3 = randScore(); row.S4 = randScore(); row.S5 = randScore();
                 } else {
                     row.T1 = randScore(); row.T2 = randScore(); row.T3 = randScore(); row.T7 = randScore();
-                }
-
-                // 產生隨機留言
-                if (Math.random() > 0.6) {
-                    const kw = KEYWORDS[Math.floor(Math.random() * KEYWORDS.length)];
-                    row[COLUMNS.FEEDBACK] = `我覺得系統${kw}的方面可以再加強。整體來說${Math.random() > 0.5 ? '還不錯' : '需要改善'}。`;
                 }
 
                 surveyData.push(row);
@@ -172,7 +162,7 @@
                 if (!chartInstance.current) {
                     chartInstance.current = echarts.init(chartRef.current);
                 }
-                chartInstance.current.setOption(option);
+                chartInstance.current.setOption(option, true); // true 代表合併新設定並清理舊數據
                 
                 const handleResize = () => chartInstance.current.resize();
                 window.addEventListener('resize', handleResize);
@@ -197,10 +187,8 @@
                 frequency: '全部'
             });
 
-            // 區塊三模式切換
-            const [sec3Mode, setSec3Mode] = useState('heatmap'); // heatmap | stacked
-            // 關鍵字篩選
-            const [selectedKeyword, setSelectedKeyword] = useState(null);
+            // 區塊三模式切換 (改為基準預設)
+            const [sec3Mode, setSec3Mode] = useState('benchmark'); // benchmark | stacked
 
             // 初始化載入資料
             useEffect(() => {
@@ -257,7 +245,7 @@
             const combinedTrendData = useMemo(() => {
                 if (!rawData || !rawData.historyData) return [];
                 
-                // 取出歷年資料，過濾掉可能不小心寫入的114年舊資料 (注意這裡改為 '年度')
+                // 取出歷年資料，過濾掉可能不小心寫入的114年舊資料
                 const pastData = rawData.historyData.filter(d => !String(d['年度']).includes('114'));
                 
                 // 計算當前這份問卷的 Q2, Q5 平均數
@@ -301,9 +289,10 @@
                 ]
             };
 
-            // 區塊二：驅動分析 (長條圖) - 動態計算目前篩選身分「所有有效題目」的相關係數並附上題號
+            // 區塊二：驅動分析 (長條圖)
+            // [修改點] 嚴格排除任何名稱包含 feedback 的欄位，避免干擾
             const correlations = Object.keys(qMap)
-                .filter(q => q !== 'Q5')
+                .filter(q => q !== 'Q5' && !String(q).toLowerCase().includes('feedback'))
                 .map(q => {
                     const r = calcCorrelation(filteredData, 'Q5', q);
                     return {
@@ -319,7 +308,11 @@
                 tooltip: { trigger: 'axis', formatter: '{b}: R = {c}' },
                 grid: { left: '3%', right: '10%', bottom: '3%', top: '3%', containLabel: true },
                 xAxis: { type: 'value', name: '相關係數 (r)', max: 1, min: 0 }, // 強制以 0 為起點，不顯示負值
-                yAxis: { type: 'category', data: correlations.map(c => c.name), axisLabel: { width: 140, overflow: 'truncate' } },
+                yAxis: { 
+                    type: 'category', 
+                    data: correlations.map(c => c.name), 
+                    axisLabel: { width: 180, overflow: 'break', interval: 0, fontSize: 12, lineHeight: 16 } 
+                },
                 series: [{
                     type: 'bar',
                     data: correlations.map(c => c.val),
@@ -331,51 +324,31 @@
                 }]
             };
 
-            // 區塊二：分層使用滿意度 - 套用剛剛動態萃取出的唯一頻率
+            // 區塊二：分層使用滿意度
             const freqAvg = uniqueFreqs.map(f => {
                 const d = filteredData.filter(x => x[COLUMNS.FREQUENCY] === f);
                 return d.length ? parseFloat(calcAvg(d, 'Q5')) : 0;
             });
             const segmentationOption = {
                 tooltip: { trigger: 'axis' },
-                grid: { left: '3%', right: '4%', bottom: '10%', top: '10%', containLabel: true },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '15%', containLabel: true }, // top 加大一點空間放數字
                 xAxis: { type: 'category', data: uniqueFreqs, axisLabel: { interval: 0, rotate: uniqueFreqs.length > 4 ? 30 : 0 } },
                 yAxis: { type: 'value', min: 1, max: 5 },
                 series: [
-                    { name: '滿意度 (長條)', type: 'bar', data: freqAvg, itemStyle: { color: '#8b5cf6', borderRadius: [4, 4, 0, 0] } },
-                    { name: '趨勢線 (折線)', type: 'line', data: freqAvg, smooth: true, itemStyle: { color: '#f59e0b' }, lineStyle: { width: 3 } }
-                ]
-            };
-
-            // 區塊三：100% 堆疊資料
-            const allQKeys = Object.keys(qMap);
-            const stackData = allQKeys.map(k => {
-                const counts = countScores(filteredData, k);
-                const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-                return {
-                    name: `(${k}) ${qMap[k]}`,
-                    s1: (counts[1]/total*100), s2: (counts[2]/total*100), s3: (counts[3]/total*100),
-                    s4: (counts[4]/total*100), s5: (counts[5]/total*100),
-                    avg: calcAvg(filteredData, k)
-                };
-            }).sort((a, b) => parseFloat(b.avg) - parseFloat(a.avg)); // 依平均分排序
-
-            const stackedOption = {
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (params) => {
-                    let res = params[0].name + '<br/>';
-                    params.forEach(p => res += p.marker + p.seriesName + ': ' + p.value.toFixed(1) + '%<br/>');
-                    return res;
-                }},
-                legend: { data: ['非常不滿意', '不滿意', '普通', '滿意', '非常滿意'], bottom: 0 },
-                grid: { left: '3%', right: '5%', bottom: '10%', top: '3%', containLabel: true },
-                xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
-                yAxis: { type: 'category', data: stackData.map(d => d.name).reverse(), axisLabel: { width: 180, overflow: 'truncate' } },
-                series: [
-                    { name: '非常不滿意', type: 'bar', stack: 'total', itemStyle: { color: '#ef4444' }, data: stackData.map(d => d.s1).reverse() },
-                    { name: '不滿意', type: 'bar', stack: 'total', itemStyle: { color: '#f87171' }, data: stackData.map(d => d.s2).reverse() },
-                    { name: '普通', type: 'bar', stack: 'total', itemStyle: { color: '#d1d5db' }, data: stackData.map(d => d.s3).reverse() },
-                    { name: '滿意', type: 'bar', stack: 'total', itemStyle: { color: '#34d399' }, data: stackData.map(d => d.s4).reverse() },
-                    { name: '非常滿意', type: 'bar', stack: 'total', itemStyle: { color: '#10b981' }, data: stackData.map(d => d.s5).reverse() },
+                    { 
+                        name: '平均滿意度', 
+                        type: 'bar', 
+                        data: freqAvg, 
+                        barMaxWidth: 60, // 限制柱子最大寬度，避免選項太少時過胖
+                        itemStyle: { color: '#8b5cf6', borderRadius: [4, 4, 0, 0] },
+                        label: { 
+                            show: true, 
+                            position: 'top', 
+                            formatter: '{c}', // 直接在柱體上方顯示分數
+                            color: '#4b5563', 
+                            fontWeight: 'bold' 
+                        } 
+                    }
                 ]
             };
 
@@ -465,7 +438,11 @@
                 legend: { data: ['非常不滿意', '不滿意', '普通', '滿意', '非常滿意'], bottom: 0, textStyle: {fontSize: 10} },
                 grid: { left: '3%', right: '5%', bottom: '15%', top: '5%', containLabel: true },
                 xAxis: { type: 'value', max: 100, show: false },
-                yAxis: { type: 'category', data: stackData4_3.map(d => d.name), axisLabel: { width: 100, overflow: 'break' } },
+                yAxis: { 
+                    type: 'category', 
+                    data: stackData4_3.map(d => d.name), 
+                    axisLabel: { width: 160, overflow: 'break', interval: 0, fontSize: 12, lineHeight: 16 } 
+                },
                 series: [
                     { name: '非常不滿意', type: 'bar', stack: 't', itemStyle: { color: '#ef4444' }, data: stackData4_3.map(d => d.s1) },
                     { name: '不滿意', type: 'bar', stack: 't', itemStyle: { color: '#f87171' }, data: stackData4_3.map(d => d.s2) },
@@ -474,6 +451,74 @@
                     { name: '非常滿意', type: 'bar', stack: 't', itemStyle: { color: '#10b981' }, data: stackData4_3.map(d => d.s5) },
                 ]
             };
+
+            // ==========================================
+            // 處理區塊三：每題獨立呈現卡片
+            // ==========================================
+            // 過濾掉 Feedback，只保留正常的題目 Q, S, T 等
+            const validSec3Keys = Object.keys(qMap).filter(k => !String(k).toLowerCase().includes('feedback'));
+
+            // 準備每張卡片的圖表資料 (若該單位該題沒填答，分數為 0，則予以過濾隱藏)
+            const sec3CardsData = validSec3Keys.map(k => {
+                const curAvg = parseFloat(calcAvg(filteredData, k));
+                const allAvg = parseFloat(calcAvg(allData, k));
+                
+                if (curAvg === 0) return null; // 隱藏沒資料的卡片
+
+                // 準備分佈圖資料 (轉換為百分比)
+                const counts = countScores(filteredData, k);
+                const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+                const distData = [
+                    (counts[1]/total*100).toFixed(1),
+                    (counts[2]/total*100).toFixed(1),
+                    (counts[3]/total*100).toFixed(1),
+                    (counts[4]/total*100).toFixed(1),
+                    (counts[5]/total*100).toFixed(1)
+                ];
+
+                const diff = (curAvg - allAvg).toFixed(2);
+                const isPositive = diff >= 0;
+
+                // 獨立的基準對比圖 (雙橫條)
+                const benchOption = {
+                    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                    grid: { left: '3%', right: '15%', bottom: '5%', top: '5%', containLabel: true },
+                    xAxis: { type: 'value', min: 0, max: 5, splitLine: { show: false } },
+                    yAxis: { type: 'category', data: ['全院基準', '當前單位'], axisLabel: { fontWeight: 'bold' }, axisLine: {show: false}, axisTick: {show: false} },
+                    series: [
+                        {
+                            type: 'bar',
+                            data: [
+                                { value: allAvg, itemStyle: { color: '#d1d5db', borderRadius: [0, 4, 4, 0] } },
+                                { value: curAvg, itemStyle: { color: '#0ea5e9', borderRadius: [0, 4, 4, 0] } }
+                            ],
+                            label: { show: true, position: 'right', formatter: '{c}', color: '#4b5563', fontWeight: 'bold' },
+                            barWidth: '40%'
+                        }
+                    ]
+                };
+
+                // 獨立的滿意度分佈圖 (5分制直條)
+                const distOption = {
+                    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: '{b}: {c}%' },
+                    grid: { left: '5%', right: '5%', bottom: '5%', top: '15%', containLabel: true },
+                    xAxis: { type: 'category', data: ['1分', '2分', '3分', '4分', '5分'], axisLabel: { interval: 0, fontSize: 10 }, axisTick: {show: false} },
+                    yAxis: { type: 'value', max: 100, splitLine: { lineStyle: { type: 'dashed' } }, axisLabel: { show: false } },
+                    series: [{
+                        type: 'bar',
+                        data: [
+                            { value: distData[0], itemStyle: { color: '#ef4444', borderRadius: [4, 4, 0, 0] } },
+                            { value: distData[1], itemStyle: { color: '#f87171', borderRadius: [4, 4, 0, 0] } },
+                            { value: distData[2], itemStyle: { color: '#d1d5db', borderRadius: [4, 4, 0, 0] } },
+                            { value: distData[3], itemStyle: { color: '#34d399', borderRadius: [4, 4, 0, 0] } },
+                            { value: distData[4], itemStyle: { color: '#10b981', borderRadius: [4, 4, 0, 0] } }
+                        ],
+                        label: { show: true, position: 'top', formatter: '{c}%', fontSize: 10, color: '#6b7280' }
+                    }]
+                };
+
+                return { k, text: qMap[k], curAvg, diff, isPositive, benchOption, distOption };
+            }).filter(item => item !== null); // 濾除 null 的卡片
 
 
             return (
@@ -580,62 +625,45 @@
                             </div>
                         </section>
 
-                        {/* 📍 區塊三：全題項滿意度細部剖析 */}
+                        {/* 📍 區塊三：全題項滿意度剖析 (改為單獨呈現網格) */}
                         <section>
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 md:mb-4">
-                                <h2 className="text-lg md:text-xl font-bold border-l-4 border-teal-600 pl-3 text-gray-800">📍 區塊三：全題項滿意度細部剖析</h2>
+                                <h2 className="text-lg md:text-xl font-bold border-l-4 border-teal-600 pl-3 text-gray-800">📍 區塊三：全題項滿意度剖析</h2>
                                 <div className="bg-gray-200 p-1 rounded-lg flex text-sm w-full sm:w-auto">
                                     <button 
-                                        className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-1 rounded-md transition-colors ${sec3Mode === 'heatmap' ? 'bg-white shadow font-bold text-teal-700' : 'text-gray-600 hover:bg-gray-300'}`}
-                                        onClick={() => setSec3Mode('heatmap')}
-                                    >均分對比</button>
+                                        className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-1 rounded-md transition-colors ${sec3Mode === 'benchmark' ? 'bg-white shadow font-bold text-teal-700' : 'text-gray-600 hover:bg-gray-300'}`}
+                                        onClick={() => setSec3Mode('benchmark')}
+                                    >全院基準對比</button>
                                     <button 
                                         className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-1 rounded-md transition-colors ${sec3Mode === 'stacked' ? 'bg-white shadow font-bold text-teal-700' : 'text-gray-600 hover:bg-gray-300'}`}
                                         onClick={() => setSec3Mode('stacked')}
-                                    >情緒分佈</button>
+                                    >滿意度分佈</button>
                                 </div>
                             </div>
                             
-                            <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 min-h-[400px]">
-                                {sec3Mode === 'heatmap' ? (
-                                    <div className="overflow-x-auto custom-scrollbar">
-                                        <table className="min-w-full text-left text-sm whitespace-nowrap">
-                                            <thead className="border-b bg-gray-50 text-gray-700">
-                                                <tr>
-                                                    <th className="px-3 md:px-4 py-3 font-bold">題項</th>
-                                                    <th className="px-3 md:px-4 py-3 font-bold text-center">當前單位均分</th>
-                                                    <th className="px-3 md:px-4 py-3 font-bold text-center">全院均分</th>
-                                                    <th className="px-3 md:px-4 py-3 font-bold text-center">差異對比</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {allQKeys.map((k, i) => {
-                                                    const curAvg = parseFloat(calcAvg(filteredData, k));
-                                                    const allAvg = parseFloat(calcAvg(allData, k));
-                                                    if (curAvg === 0) return null; // 該身分沒有這題
-                                                    const diff = (curAvg - allAvg).toFixed(2);
-                                                    const isNegative = diff < 0;
-                                                    return (
-                                                        <tr key={k} className="border-b last:border-0 hover:bg-gray-50">
-                                                            <td className="px-3 md:px-4 py-3 font-medium text-gray-800">{`(${k}) ${qMap[k]}`}</td>
-                                                            <td className="px-3 md:px-4 py-3 text-center font-bold">{curAvg.toFixed(2)}</td>
-                                                            <td className="px-3 md:px-4 py-3 text-center text-gray-500">{allAvg.toFixed(2)}</td>
-                                                            <td className="px-3 md:px-4 py-3 text-center">
-                                                                <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${isNegative ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                                                    {diff > 0 ? '+' : ''}{diff}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    )
-                                                })}
-                                            </tbody>
-                                        </table>
+                            {/* 單題獨立呈現的網格佈局 (Grid) */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                {sec3CardsData.map(item => (
+                                    <div key={item.k} className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                                        {/* 卡片上半部：完整題目區塊 */}
+                                        <div className="bg-gray-50 p-4 border-b border-gray-100 flex-none">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded border border-teal-100">{item.k}</span>
+                                                {sec3Mode === 'benchmark' && (
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${item.isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {item.isPositive ? '+' : ''}{item.diff}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {/* 確保文字完整換行顯示，無截斷 */}
+                                            <div className="text-sm font-bold text-gray-800 leading-relaxed break-words">{item.text}</div>
+                                        </div>
+                                        {/* 卡片下半部：獨立圖表 */}
+                                        <div className="p-2 h-40 bg-white">
+                                            <ReactECharts option={sec3Mode === 'benchmark' ? item.benchOption : item.distOption} />
+                                        </div>
                                     </div>
-                                ) : (
-                                    <div className="h-[400px] md:h-[500px]">
-                                        <ReactECharts option={stackedOption} />
-                                    </div>
-                                )}
+                                ))}
                             </div>
                         </section>
 
@@ -673,69 +701,6 @@
                                     <p className="text-xs text-gray-500 mb-2">評估行政減量、歷程保存與自我管理效益</p>
                                     <div className="flex-grow min-h-[250px]">
                                         <ReactECharts option={stackedOption4_3} />
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* 📍 區塊五：開放式回饋挖掘 */}
-                        <section>
-                            <h2 className="text-lg md:text-xl font-bold border-l-4 border-rose-500 pl-3 mb-3 md:mb-4 text-gray-800">📍 區塊五：開放式回饋挖掘 (Voice of Customer)</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                                {/* 標籤雲 (模擬) */}
-                                <div className="bg-white rounded-xl shadow-sm p-4 md:p-5 border border-gray-100 md:col-span-1">
-                                    <h3 className="font-bold text-gray-700 mb-4">關鍵字分析 (點擊篩選)</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button 
-                                            onClick={() => setSelectedKeyword(null)}
-                                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${selectedKeyword === null ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                                        >全部顯示</button>
-                                        {KEYWORDS.map(kw => {
-                                            // 簡單計算該關鍵字出現次數 (僅針對有填寫回饋的過濾後資料)
-                                            const count = filteredData.filter(d => d[COLUMNS.FEEDBACK] && d[COLUMNS.FEEDBACK].includes(kw)).length;
-                                            if(count === 0) return null;
-                                            
-                                            // 判斷正負面顏色 (模擬)
-                                            const isNeg = ["當機", "卡頓", "找不到"].includes(kw);
-                                            const isPos = ["好用", "進步", "很快"].includes(kw);
-                                            const colorClass = isNeg ? 'bg-red-100 text-red-700 hover:bg-red-200' : 
-                                                             isPos ? 'bg-green-100 text-green-700 hover:bg-green-200' : 
-                                                             'bg-blue-100 text-blue-700 hover:bg-blue-200';
-                                            const activeClass = selectedKeyword === kw ? 'ring-2 ring-offset-2 ring-gray-400' : '';
-
-                                            return (
-                                                <button 
-                                                    key={kw} 
-                                                    onClick={() => setSelectedKeyword(kw)}
-                                                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${colorClass} ${activeClass}`}
-                                                >
-                                                    {kw} <span className="opacity-60 text-xs ml-1">({count})</span>
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                                
-                                {/* 留言瀑布流 */}
-                                <div className="bg-white rounded-xl shadow-sm p-0 border border-gray-100 md:col-span-2 overflow-hidden flex flex-col h-[400px] md:h-96">
-                                    <div className="p-3 md:p-4 border-b bg-gray-50 font-bold text-gray-700 flex justify-between items-center text-sm md:text-base">
-                                        <span>回饋列表 {selectedKeyword && <span className="text-blue-600 font-normal text-xs md:text-sm ml-2">過濾: {selectedKeyword}</span>}</span>
-                                    </div>
-                                    <div className="p-3 md:p-4 overflow-y-auto custom-scrollbar flex-grow space-y-3">
-                                        {filteredData.filter(d => d[COLUMNS.FEEDBACK] && (!selectedKeyword || d[COLUMNS.FEEDBACK].includes(selectedKeyword))).length === 0 ? (
-                                            <div className="text-gray-400 text-center py-8">目前無符合條件之回饋</div>
-                                        ) : (
-                                            filteredData.filter(d => d[COLUMNS.FEEDBACK] && (!selectedKeyword || d[COLUMNS.FEEDBACK].includes(selectedKeyword))).map((d, i) => (
-                                                <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm text-gray-700 shadow-sm">
-                                                    <div className="flex flex-wrap gap-2 mb-2 text-xs font-bold text-gray-500">
-                                                        <span className="bg-white px-2 py-0.5 rounded border">{d[COLUMNS.JOB_CATEGORY]}</span>
-                                                        <span className="bg-white px-2 py-0.5 rounded border">{d[COLUMNS.ROLE]}</span>
-                                                        <span className="ml-auto flex items-center gap-1 text-yellow-600"><Icons.Star/> Q5: {d['Q5']}</span>
-                                                    </div>
-                                                    <p className="mt-1 leading-relaxed">{d[COLUMNS.FEEDBACK]}</p>
-                                                </div>
-                                            ))
-                                        )}
                                     </div>
                                 </div>
                             </div>
