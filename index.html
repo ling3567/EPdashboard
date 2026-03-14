@@ -373,7 +373,7 @@
                 getGroupAvg(allData, ['T7', 'S5'])
             ];
             const radarOption = {
-                tooltip: {},
+                tooltip: { trigger: 'item' },
                 legend: { data: ['目前篩選單位', '全院平均'], bottom: 0 },
                 radar: {
                     indicator: [
@@ -381,13 +381,31 @@
                         { name: '資訊品質\n(查詢/進度)', max: 5 },
                         { name: '服務品質\n(問題求助)', max: 5 }
                     ],
-                    radius: '65%'
+                    radius: '65%',
+                    axisName: { color: '#4b5563', fontWeight: 'bold' }
                 },
                 series: [{
                     type: 'radar',
+                    // [視覺優化] 將全院平均放前面讓它墊在底層，加粗線條並增加背景色塊
                     data: [
-                        { value: radarCurrent, name: '目前篩選單位', itemStyle: { color: '#2563eb' }, lineStyle: { width: 2 } },
-                        { value: radarAll, name: '全院平均', itemStyle: { color: '#9ca3af' }, lineStyle: { type: 'dashed' }, areaStyle: { color: 'rgba(156, 163, 175, 0.2)' } }
+                        { 
+                            value: radarAll, 
+                            name: '全院平均', 
+                            symbol: 'circle',
+                            symbolSize: 6,
+                            itemStyle: { color: '#9ca3af' }, 
+                            lineStyle: { type: 'dashed', width: 2 }, 
+                            areaStyle: { color: 'rgba(156, 163, 175, 0.15)' } 
+                        },
+                        { 
+                            value: radarCurrent, 
+                            name: '目前篩選單位', 
+                            symbol: 'circle',
+                            symbolSize: 8,
+                            itemStyle: { color: '#0ea5e9' }, 
+                            lineStyle: { width: 3 }, 
+                            areaStyle: { color: 'rgba(14, 165, 233, 0.3)' } 
+                        }
                     ]
                 }]
             };
@@ -684,13 +702,16 @@
                         {/* 📍 區塊四：理論模型與成效檢核 */}
                         <section>
                             <h2 className="text-lg md:text-xl font-bold border-l-4 border-amber-500 pl-3 mb-2 md:mb-4 text-gray-800">📍 區塊四：理論模型與成效檢核 (D&M / Workflow Fit)</h2>
-                            <div className="text-sm text-gray-600 mb-4 ml-3 md:ml-4">從系統體質、流程適配到最終價值，檢視 E-Portfolio 系統是否真正支持教學與學習。</div>
+                            <div className="text-sm text-gray-600 mb-4 ml-3 md:ml-4 leading-relaxed">
+                                本區塊以 D&M 資訊系統成功模型為主要分析架構，並納入流程適配概念，從系統品質、資訊品質、服務品質出發，進一步檢視評核流程順暢度、教師操作認知落差，以及系統最終帶來的行政減量、歷程保存與學習管理價值。
+                            </div>
                             
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                                 {/* Card 4-1 */}
                                 <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 flex flex-col">
                                     <h3 className="font-bold text-gray-800 border-b pb-2 mb-2">4-1. 系統體質健康度 (D&M)</h3>
-                                    <p className="text-xs text-gray-500 mb-2">診斷系統、資訊與服務三大品質表現</p>
+                                    <p className="text-xs text-gray-500 mb-1">診斷系統、資訊與服務三大品質表現</p>
+                                    <p className="text-[11px] text-gray-400 mb-2">* 數值計算：系統(Q1,Q2均分)、資訊(Q3,Q4,S1均分)、服務(T7,S5均分)</p>
                                     <div className="flex-grow min-h-[250px]">
                                         <ReactECharts option={radarOption} />
                                     </div>
@@ -700,11 +721,12 @@
                                 <div className="bg-white rounded-xl shadow-sm p-3 md:p-4 border border-gray-100 flex flex-col gap-4">
                                     <div>
                                         <h3 className="font-bold text-gray-800 border-b pb-2 mb-2">4-2. 臨床任務適配與認知落差</h3>
-                                        <p className="text-xs text-gray-500 mb-1">衡量教師評核流程是否順暢 (T2)</p>
+                                        <p className="text-xs text-gray-500 mb-3">找出評核流程是否順暢，以及教師自評與學員觀察是否一致</p>
+                                        <p className="text-[11px] text-gray-400 mb-1">衡量教師評核流程是否順暢 (T2)</p>
                                         <div className="h-40 md:h-32"><ReactECharts option={gaugeOption} /></div>
                                     </div>
                                     <div className="border-t pt-2">
-                                        <p className="text-xs text-gray-500 mb-1">師生對系統熟練度認知落差</p>
+                                        <p className="text-[11px] text-gray-400 mb-1">師生對系統熟練度認知落差</p>
                                         <div className="h-40 md:h-32"><ReactECharts option={dualBarOption} /></div>
                                     </div>
                                 </div>
