@@ -39,8 +39,8 @@
     <style>
         /* 投影機專用：更深的背景對比與明確的字體設定 */
         body { 
-            background-color: #e5e7eb; /* 較深的灰白背景，凸顯純白卡片 */
-            color: #111827; /* 近乎純黑的文字，確保最高對比度 */
+            background-color: #e5e7eb; 
+            color: #111827; 
         }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f3f4f6; }
@@ -48,14 +48,13 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
         .glass-header { 
             background: rgba(255, 255, 255, 0.98); 
-            border-bottom: 2px solid #d1d5db; /* 加粗導覽列底線 */
+            border-bottom: 2px solid #d1d5db; 
         }
-        /* 投影機專用卡片：移除模糊陰影，改用實線邊框 */
         .dashboard-card {
             background-color: #ffffff;
             border-radius: 0.75rem; 
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            border: 1px solid #cbd5e1; /* 明確的灰色實體邊框 */
+            border: 1px solid #cbd5e1; 
         }
     </style>
 </head>
@@ -98,7 +97,6 @@
             FEEDBACK_OTHER: "FeedbackOther"            
         };
 
-        // 模擬資料 
         const generateMockData = () => {
             const professions = ["醫師", "藥事", "醫事放射", "醫事檢驗", "護理", "營養", "呼吸治療", "聽力", "物理治療", "職能治療", "臨床心理", "語言治療"];
             const roles = ["臨床教師", "學員"];
@@ -180,7 +178,6 @@
             return counts;
         };
 
-        // SVG Icons (加粗線條)
         const Icons = {
             Users: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
             Star: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
@@ -201,7 +198,6 @@
                     chartInstance.current = echarts.init(chartRef.current);
                 }
                 
-                // 強制所有 ECharts 圖表繼承 Noto Sans TC 字型
                 const finalOption = {
                     ...option,
                     textStyle: {
@@ -240,11 +236,11 @@
 
             // 投影專用：高對比色彩定義
             const colors = {
-                primary: '#1d4ed8',    // 寶石藍 (Blue-700) - 極高辨識度
+                primary: '#1d4ed8',    // 寶石藍 (Blue-700) 
                 primaryLight: '#bfdbfe', // 淺藍色 (Blue-200)
                 secondary: '#be123c',  // 深緋紅 (Rose-700)
-                secondaryLight: '#fecdd3', // 淺紅色
-                accent: '#c2410c',     // 深橘色 (Orange-700) - 警示
+                secondaryLight: '#fecdd3', 
+                accent: '#c2410c',     // 深橘色 (Orange-700)
                 score1: '#b91c1c',     // 1分：暗紅
                 score2: '#ea580c',     // 2分：深橘
                 score3: '#ca8a04',     // 3分：深黃(土黃，投影才清楚)
@@ -469,13 +465,18 @@
                 ]
             };
 
+            // 準備 4-3 的資料並計算滿意比例與平均分
             const stackData4_3 = ['T3', 'S2', 'S3'].map(k => {
                 const counts = countScores(filteredData, k);
                 const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+                const avg = parseFloat(calcAvg(filteredData, k)).toFixed(2);
+                const ratio = (((counts[4] || 0) + (counts[5] || 0)) / total * 100).toFixed(1);
                 return {
                     name: `(${k}) ${qMap[k]}`,
                     s1: (counts[1]/total*100), s2: (counts[2]/total*100), s3: (counts[3]/total*100),
-                    s4: (counts[4]/total*100), s5: (counts[5]/total*100)
+                    s4: (counts[4]/total*100), s5: (counts[5]/total*100),
+                    avg: avg,
+                    ratio: ratio
                 };
             }).reverse();
 
@@ -486,11 +487,27 @@
                     return res;
                 }},
                 legend: { data: ['非常不滿意', '不滿意', '普通', '滿意', '非常滿意'], bottom: 0, textStyle: {fontSize: 12, color: colors.grayText, fontWeight: 'bold'}, icon: 'roundRect', itemWidth: 16, itemHeight: 10 },
-                grid: { left: '2%', right: '5%', bottom: '15%', top: '5%', containLabel: true },
+                grid: { left: '2%', right: '20%', bottom: '15%', top: '5%', containLabel: true }, // right 增加空間給第二 Y 軸
                 xAxis: { type: 'value', max: 100, show: false },
-                yAxis: { type: 'category', data: stackData4_3.map(d => d.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { width: 170, overflow: 'break', interval: 0, fontSize: 13, lineHeight: 18, color: '#111827', fontWeight: 'bold' } },
+                // 採用雙 Y 軸設計，右側顯示平均與滿意度比例
+                yAxis: [
+                    { 
+                        type: 'category', 
+                        data: stackData4_3.map(d => d.name), 
+                        axisLine: { show: false }, 
+                        axisTick: { show: false }, 
+                        axisLabel: { width: 170, overflow: 'break', interval: 0, fontSize: 13, lineHeight: 18, color: '#111827', fontWeight: 'bold' } 
+                    },
+                    {
+                        type: 'category',
+                        data: stackData4_3.map(d => `平均 ${d.avg} 分\n滿意 ${d.ratio}%`),
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        axisLabel: { fontSize: 13, color: colors.primary, fontWeight: '900', lineHeight: 18, margin: 10 }
+                    }
+                ],
                 series: [
-                    { name: '非常不滿意', type: 'bar', stack: 't', itemStyle: { color: colors.score1 }, data: stackData4_3.map(d => d.s1), barWidth: '50%' },
+                    { name: '非常不滿意', type: 'bar', stack: 't', itemStyle: { color: colors.score1 }, data: stackData4_3.map(d => d.s1), barWidth: '45%' },
                     { name: '不滿意', type: 'bar', stack: 't', itemStyle: { color: colors.score2 }, data: stackData4_3.map(d => d.s2) },
                     { name: '普通', type: 'bar', stack: 't', itemStyle: { color: colors.score3 }, data: stackData4_3.map(d => d.s3) },
                     { name: '滿意', type: 'bar', stack: 't', itemStyle: { color: colors.score4 }, data: stackData4_3.map(d => d.s4) },
@@ -508,7 +525,7 @@
                         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <div className="flex items-center gap-3 text-xl md:text-2xl font-black text-gray-900 tracking-tight">
                                 <div className="p-2 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg"><Icons.Filter /></div>
-                                E-Portfolio 成效儀表板
+                                E-Portfolio系統使用滿意度分析儀表板
                             </div>
                             <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center w-full md:w-auto">
                                 <select className="w-full sm:w-auto border-2 border-gray-300 rounded-lg px-4 py-2.5 text-sm font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
@@ -663,6 +680,16 @@
                                                         </div>
                                                     ) : (
                                                         <div className="py-2">
+                                                            {/* 新增：上方平均分與滿意度總計 */}
+                                                            <div className="flex justify-between items-end mb-2.5">
+                                                                <div className="text-xs font-bold text-gray-600">
+                                                                    平均: <span className="text-base font-black text-blue-700 ml-1">{item.curAvg.toFixed(2)}</span> <span className="text-gray-400">/ 5</span>
+                                                                </div>
+                                                                <div className="text-xs font-bold text-gray-600">
+                                                                    滿意比例: <span className="text-base font-black text-blue-700 ml-1">{(parseFloat(item.distData[3]) + parseFloat(item.distData[4])).toFixed(1)}%</span>
+                                                                </div>
+                                                            </div>
+
                                                             <div className="flex h-5 rounded-sm overflow-hidden w-full mb-2 bg-gray-200 border border-gray-300">
                                                                 <div className="bg-red-700 border-r border-white/30" style={{width: `${item.distData[0]}%`}} title={`非常不滿意: ${item.distData[0]}%`}></div>
                                                                 <div className="bg-orange-600 border-r border-white/30" style={{width: `${item.distData[1]}%`}} title={`不滿意: ${item.distData[1]}%`}></div>
