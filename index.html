@@ -70,20 +70,21 @@
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbywzmBAxZkOn41Qhrf2ubCt3e1f4hAELAAsxMky4RvYEas4tMIjuUYGXnYc3cRAaMxFLw/exec"; 
         const USE_MOCK_DATA = false;
 
+        // 【更新】將 T3, S2, S3 等題目加上明確的填答主詞
         const QUESTION_MAP = {
             "Q1": "操作介面簡單清楚",
             "Q2": "系統運作穩定",
             "Q3": "查詢與閱讀課程資訊方便",
             "Q4": "能掌握學習/教學進度",
             "Q5": "整體滿意度",
-            "S1": "能順利查閱老師評核結果與回饋",
-            "S2": "系統完整保存學習歷程與評核紀錄",
-            "S3": "透過系統能掌握完訓進度與待辦項目",
-            "S4": "評估教師系統操作熟練度",
+            "S1": "學員能順利查閱老師評核結果與回饋",
+            "S2": "學員系統完整保存學習歷程與評核紀錄",
+            "S3": "學員透過系統能掌握完訓進度與待辦項目",
+            "S4": "學員評估教師系統操作熟練度",
             "S5": "學員端遇到問題能獲得有效協助",
-            "T1": "自評系統操作熟練度",
-            "T2": "評分流程順暢度(Workflow Fit)",
-            "T3": "能有效節省工作時間",
+            "T1": "教師自評系統操作熟練度",
+            "T2": "教師評分流程順暢度(Workflow Fit)",
+            "T3": "教師能有效節省工作時間",
             "T7": "教師端遇到問題能獲得有效協助"
         };
 
@@ -327,7 +328,7 @@
             const allData = rawData.surveyData;
             const qMap = rawData.questionMap;
 
-            // ================= 區塊圖表設定 (字體加粗加大) =================
+            // ================= 區塊圖表設定 =================
             const trendOption = {
                 tooltip: { trigger: 'axis', backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#9ca3af', textStyle: {color: '#111827', fontWeight: 'bold'} },
                 legend: { data: ['整體滿意度 (Q5)', '系統穩定度 (Q2)'], bottom: 0, icon: 'circle', textStyle: { fontSize: 13, color: colors.grayText, fontWeight: 'bold' } },
@@ -460,8 +461,8 @@
                 xAxis: { type: 'value', max: 5, splitLine: { lineStyle: { type: 'dashed', color: '#cbd5e1' } }, axisLabel: { color: colors.grayText, fontWeight: 'bold' } },
                 yAxis: { type: 'category', data: ['系統熟練度'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false } },
                 series: [
-                    { name: 'T1 教師自評', type: 'bar', data: [calcAvg(filteredData, 'T1')], itemStyle: { color: colors.primary, borderRadius: 4 }, barWidth: '35%', label: {show: true, position: 'right', color: colors.primary, fontWeight: '900', fontSize: 14} },
-                    { name: 'S4 學員評估', type: 'bar', data: [calcAvg(filteredData, 'S4')], itemStyle: { color: colors.secondary, borderRadius: 4 }, barWidth: '35%', label: {show: true, position: 'right', color: colors.secondary, fontWeight: '900', fontSize: 14} }
+                    { name: 'T1 教師自評熟練度', type: 'bar', data: [calcAvg(filteredData, 'T1')], itemStyle: { color: colors.primary, borderRadius: 4 }, barWidth: '35%', label: {show: true, position: 'right', color: colors.primary, fontWeight: '900', fontSize: 14} },
+                    { name: 'S4 學員評估教師熟練度', type: 'bar', data: [calcAvg(filteredData, 'S4')], itemStyle: { color: colors.secondary, borderRadius: 4 }, barWidth: '35%', label: {show: true, position: 'right', color: colors.secondary, fontWeight: '900', fontSize: 14} }
                 ]
             };
 
@@ -487,9 +488,8 @@
                     return res;
                 }},
                 legend: { data: ['非常不滿意', '不滿意', '普通', '滿意', '非常滿意'], bottom: 0, textStyle: {fontSize: 12, color: colors.grayText, fontWeight: 'bold'}, icon: 'roundRect', itemWidth: 16, itemHeight: 10 },
-                grid: { left: '2%', right: '20%', bottom: '15%', top: '5%', containLabel: true }, // right 增加空間給第二 Y 軸
+                grid: { left: '2%', right: '5%', bottom: '15%', top: '5%', containLabel: true }, 
                 xAxis: { type: 'value', max: 100, show: false },
-                // 採用雙 Y 軸設計，右側顯示平均與滿意度比例
                 yAxis: [
                     { 
                         type: 'category', 
@@ -586,7 +586,7 @@
                                     </div>
                                     <div className="dashboard-card p-5 border-b-4 border-b-rose-600 flex flex-col items-center justify-center text-center">
                                         <div className="text-rose-700 mb-3"><Icons.Clock /></div>
-                                        <div className="text-sm font-bold text-gray-600 mb-1">行政減量有感 (T3)</div>
+                                        <div className="text-sm font-bold text-gray-600 mb-1">教師行政減量有感 (T3)</div>
                                         <div className="text-4xl font-black text-gray-900">{calcAvg(filteredData, 'T3')} <span className="text-base font-bold text-gray-400">/ 5</span></div>
                                     </div>
                                 </div>
@@ -624,7 +624,7 @@
 
                         {/* 📍 區塊三：全題項滿意度剖析 (緊湊型清單) */}
                         <section>
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-3">
                                 <h2 className="text-xl md:text-2xl font-black border-l-8 border-blue-600 pl-4 text-gray-900">區塊三：全題項滿意度剖析</h2>
                                 <div className="bg-gray-200 p-1.5 rounded-xl flex text-sm w-full sm:w-auto border border-gray-300 shadow-sm">
                                     <button 
@@ -636,6 +636,13 @@
                                         onClick={() => setSec3Mode('stacked')}
                                     >滿意度分佈</button>
                                 </div>
+                            </div>
+                            
+                            <div className="text-sm font-bold text-gray-500 mb-5 ml-1 md:ml-4 flex flex-wrap items-center gap-2">
+                                <span>💡 題號填答對象說明：</span>
+                                <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-700"><strong className="text-blue-700">Q</strong> 全體人員</span>
+                                <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-700"><strong className="text-blue-700">T</strong> 臨床教師</span>
+                                <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-700"><strong className="text-blue-700">S</strong> 學員</span>
                             </div>
                             
                             <div className="dashboard-card overflow-hidden">
@@ -680,7 +687,6 @@
                                                         </div>
                                                     ) : (
                                                         <div className="py-2">
-                                                            {/* 新增：上方平均分與滿意度總計 */}
                                                             <div className="flex justify-between items-end mb-2.5">
                                                                 <div className="text-xs font-bold text-gray-600">
                                                                     平均: <span className="text-base font-black text-blue-700 ml-1">{item.curAvg.toFixed(2)}</span> <span className="text-gray-400">/ 5</span>
@@ -728,7 +734,7 @@
                                         <span className="font-black text-gray-900 mb-2 block">📝 數值計算方式：</span>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div><span className="font-black text-blue-700">系統品質：</span><br/>Q1(操作), Q2(穩定)</div>
-                                            <div><span className="font-black text-blue-700">資訊品質：</span><br/>Q3(查詢), Q4(進度), S1(回饋)</div>
+                                            <div><span className="font-black text-blue-700">資訊品質：</span><br/>Q3(查詢方便), Q4(掌握進度), S1(學員順利查閱回饋)</div>
                                             <div><span className="font-black text-blue-700">服務品質：</span><br/>T7(教師獲助), S5(學員獲助)</div>
                                         </div>
                                     </div>
@@ -763,7 +769,16 @@
                                 {/* Card 4-3 */}
                                 <div className="dashboard-card p-5 md:p-6 flex flex-col lg:col-span-2">
                                     <h3 className="font-black text-gray-900 text-lg mb-1">4-3. 系統淨效益與核心價值</h3>
-                                    <p className="text-sm font-bold text-gray-600 mb-5">評估行政減量、歷程保存與自我管理效益</p>
+                                    <p className="text-sm font-bold text-gray-600 mb-4">評估行政減量、歷程保存與自我管理效益</p>
+                                    
+                                    {/* 新增：4-3 的題號對象說明圖例 */}
+                                    <div className="text-xs font-bold text-gray-500 mb-5 ml-1 flex flex-wrap items-center gap-2">
+                                        <span>💡 題號填答對象說明：</span>
+                                        <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-700"><strong className="text-blue-700">Q</strong> 全體人員</span>
+                                        <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-700"><strong className="text-blue-700">T</strong> 臨床教師</span>
+                                        <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-700"><strong className="text-blue-700">S</strong> 學員</span>
+                                    </div>
+
                                     <div className="flex-grow min-h-[300px]">
                                         <ReactECharts option={stackedOption4_3} />
                                     </div>
