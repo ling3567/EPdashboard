@@ -38,7 +38,7 @@
 
     <style>
         body { 
-            background-color: #e5e7eb; /* 投影機友善的深灰白背景 */
+            background-color: #e5e7eb; 
             color: #111827; 
         }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
@@ -145,7 +145,8 @@
         const Icons = {
             Filter: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
             Teacher: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 22h20"/><path d="M10 2v4"/><path d="M14 2v4"/><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M10 10h4"/></svg>,
-            Student: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            Student: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>,
+            Home: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
         };
 
         // ECharts 元件
@@ -225,7 +226,7 @@
 
             if (loading) return (
                 <div className="flex h-screen items-center justify-center flex-col gap-4 bg-gray-50">
-                    <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-700 rounded-full animate-spin"></div>
+                    <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-700 rounded-full animate-spin"></div>
                     <div className="text-xl text-gray-800 font-bold tracking-wide">資料載入中，請稍候...</div>
                 </div>
             );
@@ -259,7 +260,7 @@
                                 <div className={`h-full transition-all duration-700 ease-out ${barColor}`} style={{ width: `${(curAvg / 5) * 100}%` }}></div>
                             </div>
                             <div className="w-28 text-right flex-none flex flex-col items-end gap-1">
-                                <span className={`text-xs px-2 py-0.5 rounded border font-bold shadow-sm ${isPositive ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
+                                <span className={`text-[11px] px-2 py-0.5 rounded border font-bold shadow-sm ${isPositive ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
                                     {isPositive ? '+' : ''}{diff} <span className="opacity-70 ml-0.5">(全院)</span>
                                 </span>
                             </div>
@@ -328,34 +329,50 @@
 
             return (
                 <div className="min-h-screen pb-16">
-                    {/* 頂部高對比彩色條 (與主儀表板一致) */}
-                    <div className="h-2 w-full bg-gradient-to-r from-blue-800 via-blue-500 to-cyan-400 fixed top-0 z-[60]"></div>
+                    {/* 頂部高對比彩色條 */}
+                    <div className="h-2 w-full bg-gradient-to-r from-blue-900 via-blue-600 to-indigo-500 fixed top-0 z-[60]"></div>
                     
                     {/* 頂部固定過濾器 */}
                     <div className="sticky top-2 z-50 glass-header px-4 md:px-6 py-4 mb-6 md:mb-8 shadow-sm">
                         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <div className="flex items-center gap-3 text-xl md:text-2xl font-black text-gray-900 tracking-tight">
-                                <div className="p-2 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg"><Icons.Filter /></div>
+                                <div className="p-2 bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg"><Icons.Filter /></div>
                                 職類滿意度分析
                             </div>
-                            <div className="flex items-center gap-3 w-full md:w-auto bg-gray-100 p-2.5 rounded-xl border-2 border-gray-200">
-                                <span className="text-sm font-black text-gray-600 pl-2 whitespace-nowrap">選擇檢視職類：</span>
-                                <select className="w-full sm:w-auto border-2 border-gray-300 rounded-lg px-4 py-2 text-base font-black text-blue-800 outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 bg-white cursor-pointer shadow-sm hover:bg-blue-50 transition-colors"
-                                    value={selectedProfession} onChange={e => setSelectedProfession(e.target.value)}>
-                                    <option value="全院總計">🏥 全院總計</option>
-                                    <option value="醫師">醫師</option>
-                                    <option value="藥事">藥事</option>
-                                    <option value="醫事放射">醫事放射</option>
-                                    <option value="醫事檢驗">醫事檢驗</option>
-                                    <option value="護理">護理</option>
-                                    <option value="營養">營養</option>
-                                    <option value="呼吸治療">呼吸治療</option>
-                                    <option value="聽力">聽力</option>
-                                    <option value="物理治療">物理治療</option>
-                                    <option value="職能治療">職能治療</option>
-                                    <option value="臨床心理">臨床心理</option>
-                                    <option value="語言治療">語言治療</option>
-                                </select>
+                            
+                            <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center w-full md:w-auto">
+                                {/* 🌟 新增：返回全院儀表板切換按鈕，採用深灰色設計突顯行動意涵 */}
+                                <a 
+                                    href="https://ling3567.github.io/EPdashboard/" 
+                                    target="_self"
+                                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg px-5 py-2.5 text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 focus:ring-4 focus:ring-gray-300"
+                                >
+                                    <Icons.Home />
+                                    返回全院儀表板
+                                </a>
+                                
+                                {/* 分隔線 (僅在桌面版顯示) */}
+                                <div className="hidden sm:block w-px h-8 bg-gray-300 mx-1"></div>
+
+                                <div className="flex items-center gap-3 w-full sm:w-auto bg-gray-100 p-2 rounded-xl border border-gray-200">
+                                    <span className="text-sm font-bold text-gray-600 pl-2 whitespace-nowrap">選擇檢視職類：</span>
+                                    <select className="w-full sm:w-auto border-2 border-gray-300 rounded-lg px-4 py-2 text-base font-black text-indigo-900 outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-600 bg-white cursor-pointer shadow-sm hover:bg-indigo-50 transition-colors"
+                                        value={selectedProfession} onChange={e => setSelectedProfession(e.target.value)}>
+                                        <option value="全院總計">🏥 全院總計</option>
+                                        <option value="醫師">醫師</option>
+                                        <option value="藥事">藥事</option>
+                                        <option value="醫事放射">醫事放射</option>
+                                        <option value="醫事檢驗">醫事檢驗</option>
+                                        <option value="護理">護理</option>
+                                        <option value="營養">營養</option>
+                                        <option value="呼吸治療">呼吸治療</option>
+                                        <option value="聽力">聽力</option>
+                                        <option value="物理治療">物理治療</option>
+                                        <option value="職能治療">職能治療</option>
+                                        <option value="臨床心理">臨床心理</option>
+                                        <option value="語言治療">語言治療</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -486,19 +503,19 @@
 
                                 {/* 📍 新增：開放式回饋雙欄區塊 */}
                                 <section className="pt-8 pb-4">
-                                    <h2 className="text-2xl font-black border-l-8 border-blue-600 pl-4 mb-6 text-gray-900">💬 開放式回饋留言板</h2>
+                                    <h2 className="text-2xl font-black border-l-8 border-indigo-600 pl-4 mb-6 text-gray-900">💬 開放式回饋留言板</h2>
                                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8 items-start">
                                         {/* 教師留言區 (藍色主題) */}
-                                        <div className="dashboard-card p-5 md:p-6 border-t-8 border-t-blue-600">
-                                            <h3 className="text-xl font-black text-blue-900 mb-5 flex items-center gap-2">
+                                        <div className="dashboard-card p-5 md:p-6 border-t-8 border-t-blue-800">
+                                            <h3 className="text-xl font-black text-blue-900 mb-4 flex items-center gap-2">
                                                 <div className="p-1.5 bg-blue-100 text-blue-600 rounded-md"><Icons.Teacher /></div> 臨床教師回饋
                                             </h3>
                                             {renderFeedbackList(teacherData, teacherFeedbackTab, setTeacherFeedbackTab, 'blue')}
                                         </div>
 
                                         {/* 學員留言區 (綠色主題) */}
-                                        <div className="dashboard-card p-5 md:p-6 border-t-8 border-t-emerald-500">
-                                            <h3 className="text-xl font-black text-emerald-900 mb-5 flex items-center gap-2">
+                                        <div className="dashboard-card p-5 md:p-6 border-t-8 border-t-emerald-700">
+                                            <h3 className="text-xl font-black text-emerald-900 mb-4 flex items-center gap-2">
                                                 <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-md"><Icons.Student /></div> 學員回饋
                                             </h3>
                                             {renderFeedbackList(studentData, studentFeedbackTab, setStudentFeedbackTab, 'emerald')}
