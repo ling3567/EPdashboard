@@ -283,6 +283,13 @@
                 });
             }, [rawData, filters]);
 
+            // 🌟 動態基準資料 (依據選擇的身分，自動對齊全院的同儕基準)
+            const baselineData = useMemo(() => {
+                if (!rawData) return [];
+                if (filters.role === '全部') return rawData.surveyData;
+                return rawData.surveyData.filter(d => d[COLUMNS.ROLE] === filters.role);
+            }, [rawData, filters.role]);
+
             const uniqueFreqs = useMemo(() => {
                 if (!rawData) return [];
                 const freqs = Array.from(new Set(rawData.surveyData.map(d => d[COLUMNS.FREQUENCY]))).filter(f => f && String(f).trim() !== '');
@@ -384,10 +391,10 @@
             };
 
             // 區塊三資料準備
-            const validSec3Keys = quantifiableKeys.filter(k => k !== 'Q5');
+            const validSec3Keys = quantifiableKeys; // 💡 移除了排除 Q5 的過濾器，讓 Q5 顯示
             const sec3ListData = validSec3Keys.map(k => {
                 const curAvg = parseFloat(calcAvg(filteredData, k));
-                const allAvg = parseFloat(calcAvg(allData, k));
+                const allAvg = parseFloat(calcAvg(baselineData, k)); // 💡 改用動態同儕基準 baselineData
                 if (curAvg === 0) return null;
 
                 const counts = countScores(filteredData, k);
@@ -425,14 +432,14 @@
             ];
             
             const radarAll = [
-                getGroupAvg(allData, ['Q1', 'Q2']),
-                getGroupAvg(allData, ['Q3', 'Q4', 'S1']),
-                getGroupAvg(allData, ['T7', 'S5'])
+                getGroupAvg(baselineData, ['Q1', 'Q2']), // 💡 雷達圖的全院基準也改用 baselineData 對齊
+                getGroupAvg(baselineData, ['Q3', 'Q4', 'S1']),
+                getGroupAvg(baselineData, ['T7', 'S5'])
             ];
 
             const radarOption = {
                 tooltip: { trigger: 'item', backgroundColor: 'rgba(255,255,255,0.95)' },
-                legend: { data: ['目前篩選單位', '全院平均'], bottom: 0, icon: 'circle', textStyle: { fontSize: 13, fontWeight: 'bold', color: '#374151' } },
+                legend: { data: ['目前篩選單位', '全院基準'], bottom: 0, icon: 'circle', textStyle: { fontSize: 13, fontWeight: 'bold', color: '#374151' } },
                 radar: {
                     indicator: [
                         { name: '系統品質\n(介面/穩定)', max: 5 },
@@ -448,7 +455,7 @@
                 series: [{
                     type: 'radar',
                     data: [
-                        { value: radarAll, name: '全院平均', symbol: 'none', itemStyle: { color: '#6b7280' }, lineStyle: { type: 'dashed', width: 3 }, areaStyle: { color: 'rgba(107, 114, 128, 0.1)' } },
+                        { value: radarAll, name: '全院基準', symbol: 'none', itemStyle: { color: '#6b7280' }, lineStyle: { type: 'dashed', width: 3 }, areaStyle: { color: 'rgba(107, 114, 128, 0.1)' } },
                         { value: radarCurrent, name: '目前篩選單位', symbol: 'circle', symbolSize: 8, itemStyle: { color: colors.primary }, lineStyle: { width: 4 }, areaStyle: { color: 'rgba(29, 78, 216, 0.2)' } }
                     ]
                 }]
@@ -518,13 +525,13 @@
 
             // === 動態數據洞察邏輯 ===
             const currentQ5 = parseFloat(calcAvg(filteredData, 'Q5')).toFixed(2);
-            const allQ5 = parseFloat(calcAvg(allData, 'Q5')).toFixed(2);
+            const allQ5 = parseFloat(calcAvg(baselineData, 'Q5')).toFixed(2); // 💡 AI 洞察的基準也改用 baselineData
             const q5Diff = (currentQ5 - allQ5).toFixed(2);
             
             let q5Comparison = "";
-            if (q5Diff > 0.05) q5Comparison = `高於全院平均 ${q5Diff} 分 📈`;
-            else if (q5Diff < -0.05) q5Comparison = `低於全院平均 ${Math.abs(q5Diff)} 分 ⚠️`;
-            else q5Comparison = `與全院平均相近 (微幅落差 ${Math.abs(q5Diff)} 分)`;
+            if (q5Diff > 0.05) q5Comparison = `高於全院基準 ${q5Diff} 分 📈`;
+            else if (q5Diff < -0.05) q5Comparison = `低於全院基準 ${Math.abs(q5Diff)} 分 ⚠️`;
+            else q5Comparison = `與全院基準相近 (微幅落差 ${Math.abs(q5Diff)} 分)`;
             
             const topDriver = correlations.length > 0 ? correlations[correlations.length - 1] : null;
             
@@ -681,7 +688,7 @@
                                 {maxGapItem && maxGapItem.diff < -0.05 && (
                                 <div className="flex items-start gap-2.5">
                                     <span className="text-yellow-400 text-lg leading-none mt-0.5">📉</span> 
-                                    <span><strong className="text-white text-[15px]">基準比較：</strong>「<span className="text-white">{maxGapItem.text}</span>」微幅落後全院 ({maxGapItem.diff}分)，可留意後續變化。</span>
+                                    <span><strong className="text-white text-[15px]">基準比較：</strong>「<span className="text-white">{maxGapItem.text}</span>」微幅落後基準 ({maxGapItem.diff}分)，可留意後續變化。</span>
                                 </div>
                                 )}
 
