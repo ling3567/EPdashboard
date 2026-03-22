@@ -362,9 +362,21 @@
                 .sort((a, b) => a.val - b.val)
                 .slice(-3);
 
+            // 💡 響應式優化：將 Y 軸文字改為自動斷行 (overflow: 'break')
             const driverOption = {
-                tooltip: { trigger: 'axis', formatter: '{b}: R = {c}', backgroundColor: 'rgba(255,255,255,0.95)' },
-                grid: { left: '2%', right: '15%', bottom: '15%', top: '5%', containLabel: true }, // 加大底部空間以容納雙行標籤
+                tooltip: { 
+                    trigger: 'axis', 
+                    formatter: function(params) {
+                        return `<div style="max-w: 250px; white-space: normal; font-family: 'Noto Sans TC', sans-serif;">
+                                    <strong style="color: #111827; font-size: 13px;">${params[0].name}</strong><br/>
+                                    <div style="margin-top: 4px; color: ${colors.primary}; font-weight: bold;">相關係數 (r): ${params[0].value}</div>
+                                </div>`;
+                    },
+                    backgroundColor: 'rgba(255,255,255,0.98)',
+                    borderColor: '#cbd5e1',
+                    borderWidth: 1
+                },
+                grid: { left: '2%', right: '15%', bottom: '15%', top: '5%', containLabel: true },
                 xAxis: { 
                     type: 'value', 
                     name: '相關係數 (r)', 
@@ -381,7 +393,21 @@
                         }
                     } 
                 },
-                yAxis: { type: 'category', data: correlations.map(c => c.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { width: 170, overflow: 'break', interval: 0, fontSize: 13, lineHeight: 18, color: '#111827', fontWeight: 'bold' } },
+                yAxis: { 
+                    type: 'category', 
+                    data: correlations.map(c => c.name), 
+                    axisLine: { show: false }, 
+                    axisTick: { show: false }, 
+                    axisLabel: { 
+                        width: 150, // 💡 設定最大寬度
+                        overflow: 'break', // 💡 超過寬度時自動換行
+                        interval: 0, 
+                        fontSize: 13, 
+                        lineHeight: 18, // 💡 增加行高讓多行文字更易讀
+                        color: '#111827', 
+                        fontWeight: 'bold' 
+                    } 
+                },
                 series: [{
                     type: 'bar',
                     data: correlations.map(c => c.val),
@@ -397,7 +423,7 @@
             });
             const segmentationOption = {
                 tooltip: { trigger: 'axis', backgroundColor: 'rgba(255,255,255,0.95)' },
-                grid: { left: '2%', right: '4%', bottom: '15%', top: '15%', containLabel: true }, // 💡 加大底部空間以容納雙行文字
+                grid: { left: '2%', right: '4%', bottom: '15%', top: '15%', containLabel: true }, 
                 xAxis: { 
                     type: 'category', 
                     data: uniqueFreqs, 
@@ -408,9 +434,8 @@
                         color: colors.grayText, 
                         fontSize: 12, 
                         fontWeight: 'bold',
-                        lineHeight: 18, // 💡 增加行高讓文字更易讀
+                        lineHeight: 18, 
                         formatter: function (value) {
-                            // 💡 動態判斷並加上換行與次數說明
                             if (value.includes('極少')) return value + '\n(小於1次/週)';
                             if (value.includes('偶爾')) return value + '\n(1-3次/週)';
                             if (value.includes('經常')) return value + '\n(4-5次/週)';
@@ -524,12 +549,21 @@
                 };
             }).reverse();
 
+            // 💡 響應式優化：4-3 系統淨效益圖表，Y 軸文字同步改為自動斷行 (overflow: 'break')
             const stackedOption4_3 = {
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(255,255,255,0.95)', formatter: (params) => {
-                    let res = `<div class="font-bold text-base mb-1">${params[0].name}</div>`;
-                    params.forEach(p => res += `<div class="text-sm font-bold">${p.marker} ${p.seriesName}: ${p.value.toFixed(1)}%</div>`);
-                    return res;
-                }},
+                tooltip: { 
+                    trigger: 'axis', 
+                    axisPointer: { type: 'shadow' }, 
+                    backgroundColor: 'rgba(255,255,255,0.98)',
+                    borderColor: '#cbd5e1',
+                    borderWidth: 1,
+                    formatter: (params) => {
+                        let res = `<div style="max-w: 250px; white-space: normal; font-family: 'Noto Sans TC', sans-serif;"><strong style="color: #111827; font-size: 13px;">${params[0].name}</strong></div><div style="margin-top: 6px;">`;
+                        params.forEach(p => res += `<div style="font-size: 12px; font-weight: bold; margin-bottom: 2px;">${p.marker} ${p.seriesName}: ${p.value.toFixed(1)}%</div>`);
+                        res += `</div>`;
+                        return res;
+                    }
+                },
                 legend: { data: ['非常不滿意', '不滿意', '普通', '滿意', '非常滿意'], bottom: 0, textStyle: {fontSize: 12, color: colors.grayText, fontWeight: 'bold'}, icon: 'roundRect', itemWidth: 16, itemHeight: 10 },
                 grid: { left: '2%', right: '5%', bottom: '15%', top: '5%', containLabel: true }, 
                 xAxis: { type: 'value', max: 100, show: false },
@@ -539,14 +573,22 @@
                         data: stackData4_3.map(d => d.name), 
                         axisLine: { show: false }, 
                         axisTick: { show: false }, 
-                        axisLabel: { width: 170, overflow: 'break', interval: 0, fontSize: 13, lineHeight: 18, color: '#111827', fontWeight: 'bold' } 
+                        axisLabel: { 
+                            width: 150, // 💡 設定最大寬度限制
+                            overflow: 'break', // 💡 超過寬度時自動換行
+                            interval: 0, 
+                            fontSize: 13, 
+                            lineHeight: 18, // 💡 增加行高讓多行文字更易讀
+                            color: '#111827', 
+                            fontWeight: 'bold' 
+                        } 
                     },
                     {
                         type: 'category',
                         data: stackData4_3.map(d => `平均 ${d.avg} 分\n滿意 ${d.ratio}%`),
                         axisLine: { show: false },
                         axisTick: { show: false },
-                        axisLabel: { fontSize: 13, color: colors.primary, fontWeight: '900', lineHeight: 18, margin: 10 }
+                        axisLabel: { fontSize: 12, color: colors.primary, fontWeight: '900', lineHeight: 18, margin: 8 }
                     }
                 ],
                 series: [
@@ -851,37 +893,40 @@
                                                 </div>
 
                                                 {/* 右側：精簡高效的微型視覺化 */}
+                                                {/* 💡 響應式優化：加入 whitespace-nowrap 確保數字與紅綠色徽章不會被擠壓斷行 */}
                                                 <div className="w-full lg:w-[400px] xl:w-[500px] flex-none">
                                                     {sec3Mode === 'benchmark' ? (
                                                         <div className="space-y-3.5">
                                                             <div className="flex items-center text-sm">
-                                                                <div className="w-20 text-gray-800 font-black whitespace-nowrap">當前單位</div>
-                                                                <div className="flex-1 bg-gray-200 border border-gray-300 rounded-full h-3.5 overflow-hidden flex mx-3">
+                                                                <div className="w-16 sm:w-20 text-gray-800 font-black whitespace-nowrap text-xs sm:text-sm">當前單位</div>
+                                                                <div className="flex-1 bg-gray-200 border border-gray-300 rounded-full h-3.5 overflow-hidden flex mx-2 sm:mx-3">
                                                                     <div className="bg-blue-600 h-full transition-all duration-700 ease-out" style={{ width: `${(item.curAvg / 5) * 100}%` }}></div>
                                                                 </div>
-                                                                <div className="w-24 text-right font-black text-blue-700 flex justify-end items-center gap-1.5 text-base">
+                                                                <div className="w-auto min-w-[70px] sm:w-24 text-right font-black text-blue-700 flex justify-end items-center gap-1 sm:gap-1.5 text-sm sm:text-base whitespace-nowrap">
                                                                     {item.curAvg.toFixed(2)}
-                                                                    <span className={`text-xs px-2 py-0.5 rounded border ${item.isPositive ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
+                                                                    <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded border ${item.isPositive ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
                                                                         {item.isPositive ? '+' : ''}{item.diff}
                                                                     </span>
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center text-sm">
-                                                                <div className="w-20 text-gray-600 font-bold whitespace-nowrap">全院基準</div>
-                                                                <div className="flex-1 bg-gray-200 border border-gray-300 rounded-full h-3.5 overflow-hidden flex mx-3">
+                                                                <div className="w-16 sm:w-20 text-gray-600 font-bold whitespace-nowrap text-xs sm:text-sm">全院基準</div>
+                                                                <div className="flex-1 bg-gray-200 border border-gray-300 rounded-full h-3.5 overflow-hidden flex mx-2 sm:mx-3">
                                                                     <div className="bg-gray-400 h-full transition-all duration-700 ease-out" style={{ width: `${(item.allAvg / 5) * 100}%` }}></div>
                                                                 </div>
-                                                                <div className="w-24 text-right text-gray-600 font-bold text-base">{item.allAvg.toFixed(2)}</div>
+                                                                <div className="w-auto min-w-[70px] sm:w-24 text-right text-gray-600 font-bold text-sm sm:text-base whitespace-nowrap">
+                                                                    {item.allAvg.toFixed(2)}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     ) : (
                                                         <div className="py-2">
                                                             <div className="flex justify-between items-end mb-2.5">
-                                                                <div className="text-xs font-bold text-gray-600">
-                                                                    平均: <span className="text-base font-black text-blue-700 ml-1">{item.curAvg.toFixed(2)}</span> <span className="text-gray-400">/ 5</span>
+                                                                <div className="text-xs font-bold text-gray-600 whitespace-nowrap">
+                                                                    平均: <span className="text-sm sm:text-base font-black text-blue-700 ml-1">{item.curAvg.toFixed(2)}</span> <span className="text-gray-400">/ 5</span>
                                                                 </div>
-                                                                <div className="text-xs font-bold text-gray-600">
-                                                                    滿意比例: <span className="text-base font-black text-blue-700 ml-1">{(parseFloat(item.distData[3]) + parseFloat(item.distData[4])).toFixed(1)}%</span>
+                                                                <div className="text-xs font-bold text-gray-600 whitespace-nowrap">
+                                                                    滿意比例: <span className="text-sm sm:text-base font-black text-blue-700 ml-1">{(parseFloat(item.distData[3]) + parseFloat(item.distData[4])).toFixed(1)}%</span>
                                                                 </div>
                                                             </div>
 
